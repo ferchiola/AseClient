@@ -69,6 +69,15 @@ En otra máquina, recrear ese archivo con los datos reales (ver
 `ConnectionStrings.cs`/`https://github.com/DataAction/AdoNetCore.AseClient/wiki/Running-the-integration-tests`
 para el formato).
 
+**Si una corrida de tests se cuelga sin motivo aparente** (VSTest la aborta con "Proceso de host de
+pruebas bloqueado", o un `CREATE TABLE`/DDL simple no responde nunca): antes de sospechar de un bug de
+código, correr `DUMP TRANSACTION master WITH TRUNCATE_ONLY` contra la instancia. `master` (la base
+contra la que corren estos tests y los de `EntityFrameworkCore.Ase`) no tiene `trunc log on chkpt`
+habilitado — a diferencia de `tempdb` — así que su log de transacciones se llena solo con suficiente
+actividad de tests acumulada, y una vez lleno cualquier operación logueada se queda colgada
+indefinidamente sin tirar ningún error (`sp_who` la muestra en estado `LOG SUSPEND`). Ver
+`EntityFrameworkCore.Ase/DECISIONS.md` (2026-07-31) para el caso real donde esto pasó.
+
 ## Convenciones
 
 - Mismo criterio que `EntityFrameworkCore.Ase`: no asumir comportamiento de ASE por analogía con SQL
