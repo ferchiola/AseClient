@@ -10,7 +10,7 @@
       también a quien esté en alguna de las LTS/STS intermedias.
     -->
     <TargetFrameworks>netcoreapp1.0;netcoreapp1.1;netcoreapp2.0;netcoreapp2.1;netcoreapp2.2;net46;netstandard2.0;net5.0;net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
-    <VersionPrefix>0.20.0</VersionPrefix>
+    <VersionPrefix>0.20.1</VersionPrefix>
     <AssemblyVersion>0.11.0.0</AssemblyVersion>
     <FileVersion>$(VersionPrefix)</FileVersion>
     <Authors>Fernando Chiola</Authors>
