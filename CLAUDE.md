@@ -25,14 +25,18 @@ de `EntityFrameworkCore.Ase` por este paquete propio.
 ## Stack
 
 `src/AdoNetCore.AseClient` y `src/AdoNetCore.AseClient.StrongName` targetean **toda la matriz del
-original** (`netcoreapp1.0`/`1.1`/`2.0`/`2.1`/`2.2`, `net46`, `netstandard2.0`) **más `net9.0`** — a
-pedido explícito del usuario (2026-07-31): el fork había arrancado recortado a solo `net9.0`, pero se
-restauró la matriz completa para que el paquete le sirva a cualquiera que use el driver original en un
-proyecto más viejo, no solo al caso de uso propio. `net9.0` se agregó a la lista, no la reemplazó — ver
-`build/common.props` para el detalle de qué `DefineConstants` aplica cada target (y por qué `net9.0`
-usa la combinación "más capaz", igual que antes). C# `LangVersion=7` para todos los targets salvo
-`net9.0` (`latest` — necesario por un bug real del parser del SDK de esta máquina contra Dapper, no
-del código, ver `DECISIONS.md`/README).
+original** (`netcoreapp1.0`/`1.1`/`2.0`/`2.1`/`2.2`, `net46`, `netstandard2.0`) **más `net5.0` a
+`net9.0`** (las 5 versiones "modernas", agregadas en dos pasadas — primero `net9.0` solo, después el
+resto a pedido del usuario para no dejar un salto entre 2019 y 2024) — 12 targets en total. El fork
+había arrancado recortado a solo `net9.0`, pero se restauró/amplió la matriz para que el paquete le
+sirva a cualquiera que use el driver original en un proyecto más viejo o en cualquier .NET moderno, no
+solo al caso de uso propio. Ninguno de los targets nuevos reemplazó algo de la lista original, todos
+se agregaron encima — ver `build/common.props` para el detalle de qué `DefineConstants` aplica cada
+target (`net5.0`-`net9.0` comparten la misma combinación "más capaz" que se eligió para `net9.0`
+cuando el fork era net9.0-only). C# `LangVersion=7` para todos los targets salvo `net9.0` (`latest` —
+necesario por un bug real del parser del SDK de esta máquina contra Dapper, no del código, ver
+`DECISIONS.md`/README; no se detectó el mismo problema en `net5.0`/`6.0`/`7.0`/`8.0`, que se dejaron
+en su `LangVersion` default).
 
 El proyecto de **tests** (`test/AdoNetCore.AseClient.Tests`) sigue targeteando **solo `net9.0`** — no
 se restauró su propia matriz vieja (paquetes de test tipo NUnit/Moq/Dapper en versiones modernas no

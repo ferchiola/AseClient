@@ -13,10 +13,11 @@
 >
 > **What changed from upstream** (see `DECISIONS.md` for the full history and reasoning behind each of
 > these):
-> - **Targets `net9.0` in addition to upstream's full legacy matrix** (`netcoreapp1.0` through
+> - **Targets `net5.0`–`net9.0` in addition to upstream's full legacy matrix** (`netcoreapp1.0` through
 >   `netstandard2.0`/`net46`). The fork briefly dropped everything but `net9.0` (its only consumer at
 >   the time), then restored the original matrix so this package can benefit anyone still on an older
->   target, not just this fork's own use case — `net9.0` was added on top, not swapped in.
+>   target, not just this fork's own use case — `net5.0`–`net9.0` were added on top, not swapped in,
+>   closing the gap between upstream's newest target (2019) and modern .NET.
 > - Dropped the `AdoNetCore.AseClient.Benchmark` project (outdated `BenchmarkDotNet` 0.10.14, not
 >   relevant to this fork's goal) — `AdoNetCore.AseClient.StrongName` was kept (restored alongside the
 >   target matrix).
@@ -81,7 +82,7 @@ The latest stable release of the AdoNetCore.AseClient is [available on NuGet](ht
 
 * Not all features are currently supported, and some features will not be supported. Refer to upstream's [Unsupported features](https://github.com/DataAction/AdoNetCore.AseClient/wiki/Unsupported-features) wiki page (still applicable — this fork hasn't diverged on feature support yet).
 * Performance equivalent to or better than that of `Sybase.Data.AseClient` provided by SAP. This is possible as we are eliminating the COM and OLE DB layers from this driver and .NET Core is fast.
-* Target all of upstream's frameworks (`netcoreapp1.0` through `netstandard2.0`/`net46`) plus `net9.0`.
+* Target all of upstream's frameworks (`netcoreapp1.0` through `netstandard2.0`/`net46`) plus `net5.0`–`net9.0`.
 * Should work with [Dapper](https://github.com/StackExchange/Dapper) at least as well as the `Sybase.Data.AseClient`
 
 ## Performance benchmarks

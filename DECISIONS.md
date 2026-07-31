@@ -210,6 +210,37 @@ contra la estructura original, no partir de este fork ya reorganizado).
   `AseConnectionPoolManagerTests` contra ASE real, ambos en verde — sin regresión respecto a los dos
   fixes anteriores.
 
+## Agregados `net5.0`–`net8.0` (2026-07-31)
+
+Pedido de seguimiento inmediato al anterior: "podés agregar los net anteriores al 9 que faltan?" — la
+matriz restaurada arriba saltaba directo de `netstandard2.0`/`net46` (2019) a `net9.0` (2024), dejando
+afuera las versiones intermedias (`net5.0` 2020, `net6.0` 2021 LTS, `net7.0` 2022, `net8.0` 2023 LTS).
+
+`build/common.props`: los 4 targets nuevos se agregaron a `TargetFrameworks` y a las mismas tres
+condiciones de `DefineConstants` donde ya estaba `net9.0` (`ENABLE_DB_PROVIDERFACTORY`,
+`ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS`/`ENABLE_CLONEABLE_INTERFACE`/`ENABLE_SYSTEMEXCEPTION`,
+`ENABLE_ARRAY_POOL`) — misma combinación "más capaz" que ya se justificó para `net9.0`, sin motivo
+para que difiera en una versión de .NET más vieja pero igual de moderna en términos de superficie de
+API. **No** se agregaron a la condición de `LangVersion=latest` — ese override existía por un bug
+puntual del parser de Roslyn en esta máquina compilando `net9.0` contra una llamada genérica de
+Dapper (ver primera sección de este documento), específico de esa combinación exacta; verificado que
+`net5.0`/`6.0`/`7.0`/`8.0` compilan limpio con su `LangVersion` default (no hizo falta el override).
+
+Ninguna instalación adicional hizo falta: el SDK de .NET 10 ya instalado en esta máquina puede
+compilar cualquier target `net5.0` en adelante sin paquetes de referencia extra (a diferencia de los
+`netcoreapp1.x`-`2.x`/`net46` restaurados en la sección anterior, que si necesitaron el SDK 2.2.207 y
+los reference assemblies de .NET Framework ya instalados).
+
+### Verificación
+
+- `dotnet build -f <tfm>` para los 12 targets de `src/AdoNetCore.AseClient` (los 8 de antes +
+  `net5.0`/`net6.0`/`net7.0`/`net8.0`) — los 12 compilan limpio, 0 errores. Mismo resultado para
+  `AdoNetCore.AseClient.StrongName`.
+- `dotnet pack -c Release`: el `.nupkg` ahora trae 12 carpetas `lib/<tfm>/`, confirmado inspeccionando
+  el contenido del archivo directamente.
+- Suite completa de tests (net9.0, sin cambios de alcance): 1208 unitarios + 8 de
+  `AseConnectionPoolManagerTests` contra ASE real, ambos en verde — sin regresión.
+
 ### Nota aparte, no de este fix: un test host se cuelga corriendo la suite de integración completa
 
 Al intentar correr `dotnet test --filter "FullyQualifiedName~.Integration."` completo (antes de este

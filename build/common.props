@@ -5,9 +5,11 @@
       pedido explícito del usuario (2026-07-31): el fork empezó recortado a net9.0 (único consumidor
       real hoy, EntityFrameworkCore.Ase), pero un paquete multi-target puede servirle a cualquiera que
       use el AdoNetCore.AseClient original en un proyecto más viejo, no solo a nosotros. Se agregó
-      net9.0 a la lista original en vez de reemplazarla.
+      net9.0 a la lista original en vez de reemplazarla — y después net5.0/6.0/7.0/8.0 (a pedido del
+      usuario) para no dejar un salto entre netstandard2.0/net46 (2019) y net9.0 (2024), cubriendo
+      también a quien esté en alguna de las LTS/STS intermedias.
     -->
-    <TargetFrameworks>netcoreapp1.0;netcoreapp1.1;netcoreapp2.0;netcoreapp2.1;netcoreapp2.2;net46;netstandard2.0;net9.0</TargetFrameworks>
+    <TargetFrameworks>netcoreapp1.0;netcoreapp1.1;netcoreapp2.0;netcoreapp2.1;netcoreapp2.2;net46;netstandard2.0;net5.0;net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
     <VersionPrefix>0.20.0</VersionPrefix>
     <AssemblyVersion>0.11.0.0</AssemblyVersion>
     <FileVersion>$(VersionPrefix)</FileVersion>
@@ -23,16 +25,16 @@
   <PropertyGroup Condition="'$(TargetFramework)' == 'net46'">
     <DefineConstants>$(DefineConstants);NET_FRAMEWORK</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'net46' Or '$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net9.0'">
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'net46' Or '$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net5.0' Or '$(TargetFramework)' == 'net6.0' Or '$(TargetFramework)' == 'net7.0' Or '$(TargetFramework)' == 'net8.0' Or '$(TargetFramework)' == 'net9.0'">
     <DefineConstants>$(DefineConstants);ENABLE_DB_PROVIDERFACTORY</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'net46'">
     <DefineConstants>$(DefineConstants);ENABLE_DB_DATAPERMISSION</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'net46' Or '$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net9.0'">
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'net46' Or '$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net5.0' Or '$(TargetFramework)' == 'net6.0' Or '$(TargetFramework)' == 'net7.0' Or '$(TargetFramework)' == 'net8.0' Or '$(TargetFramework)' == 'net9.0'">
     <DefineConstants>$(DefineConstants);ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS;ENABLE_CLONEABLE_INTERFACE;ENABLE_SYSTEMEXCEPTION</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'netcoreapp1.0' Or '$(TargetFramework)' == 'netcoreapp1.1' Or '$(TargetFramework)' == 'net9.0'">
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'netcoreapp1.0' Or '$(TargetFramework)' == 'netcoreapp1.1' Or '$(TargetFramework)' == 'net5.0' Or '$(TargetFramework)' == 'net6.0' Or '$(TargetFramework)' == 'net7.0' Or '$(TargetFramework)' == 'net8.0' Or '$(TargetFramework)' == 'net9.0'">
     <DefineConstants>$(DefineConstants);ENABLE_ARRAY_POOL</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp1.0' Or '$(TargetFramework)' == 'netcoreapp1.1'">
