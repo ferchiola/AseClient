@@ -36,6 +36,8 @@ namespace AdoNetCore.AseClient.Internal
             {"Pwd", ParsePassword},
             {"Password", ParsePassword},
             {"Charset", ParseCharset},
+            {"ActualCharset", ParseActualCharset},
+            {"Actual Charset", ParseActualCharset},
             {"Pooling", ParsePooling},
             {"Max Pool Size", ParseMaxPoolSize},
             {"Min Pool Size", ParseMinPoolSize},
@@ -186,6 +188,11 @@ namespace AdoNetCore.AseClient.Internal
         private static void ParseCharset(ConnectionStringItem item, ConnectionParameters result)
         {
             result.Charset = item.PropertyValue;
+        }
+
+        private static void ParseActualCharset(ConnectionStringItem item, ConnectionParameters result)
+        {
+            result.ActualCharset = item.PropertyValue;
         }
 
         private static void ParsePooling(ConnectionStringItem item, ConnectionParameters result)
@@ -373,6 +380,7 @@ namespace AdoNetCore.AseClient.Internal
         public string ClientHostName { get; private set; } = Environment.MachineName;
         public string ClientHostProc { get; private set; } = string.Empty;
         public string Charset { get; private set; }
+        public string ActualCharset { get; private set; }
         public bool Pooling { get; private set; } = true;
         public short MaxPoolSize { get; private set; } = 100;
         public short MinPoolSize { get; private set; }

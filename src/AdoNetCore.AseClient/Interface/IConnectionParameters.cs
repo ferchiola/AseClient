@@ -12,6 +12,7 @@ namespace AdoNetCore.AseClient.Interface
         string ClientHostName { get; }
         string ClientHostProc { get; }
         string Charset { get; }
+        string ActualCharset { get; }
         bool Pooling { get; }
         short MaxPoolSize { get; }
         short MinPoolSize { get; }

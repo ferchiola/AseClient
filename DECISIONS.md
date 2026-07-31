@@ -320,3 +320,88 @@ número de versión indique directamente el target framework mínimo/único en v
 - Publicado en nuget.org (`dotnet nuget push`, API key global). Las versiones `0.20.0`/`0.20.1`
   quedan publicadas tal cual (no se unlistearon) — el salto de `0.20.1` a `9.0.0` es intencional, no
   un error de versión.
+
+## `ActualCharset`: el fix de mojibake movido a nivel driver (2026-07-31)
+
+El usuario reportó que "seguía teniendo el problema de encoding" en producción después de actualizar
+a `Chiola.EntityFrameworkCore.Ase` 9.0.0 — resultó ser que nunca había configurado
+`.FixMisdetectedCharset(...)` (el fix de `EntityFrameworkCore.Ase`, ver su propio `DECISIONS.md`,
+2026-07-31) al hacer el upgrade. Al resolver esa confusión, surgió la pregunta obvia: ya que ahora
+mantenemos el driver, ¿por qué no arreglar esto ahí directamente, en vez de requerir que cada
+consumidor de EF Core se acuerde de configurar una opción aparte?
+
+### Por qué a nivel driver es mejor, no solo "más DRY"
+
+El fix de EF Core tiene que **deshacer** una decodificación ya mal hecha: re-codificar el string con
+el charset que declaró el servidor (`cp850`) para recuperar los bytes crudos, y volver a decodificar
+con el charset real (`windows-1252`) — porque para cuando el `ValueConverter` de EF Core ve el valor,
+el driver ya lo decodificó una vez (mal). A nivel driver tenemos los bytes crudos del wire *antes* de
+cualquier conversión, así que alcanza con decodificar una sola vez, directo, con el charset correcto —
+sin el paso intermedio de "decodificar mal a propósito para poder deshacerlo después".
+
+Además, beneficia a cualquier consumidor del driver (scaffolding de EF Core, cualquier app que use
+`AseConnection` directo, no solo EF Core en general), y — a diferencia del fix de EF Core, que era
+**solo lectura a propósito** — este es **bidireccional**: tanto lectura como escritura usan el charset
+real. Se decidió así con el usuario explícitamente: dado que el servidor no hace ninguna conversión de
+charset real en este escenario (los bytes pasan tal cual se envían, en cualquier dirección), no hay
+motivo para que las escrituras nuevas sigan codificándose con el charset declarado (ficticio) del
+servidor — unifica datos legacy y datos nuevos bajo el mismo encoding real, sin necesidad de tratarlos
+distinto según cuándo se escribieron.
+
+### Implementación
+
+Nuevo keyword de connection string, **`ActualCharset`** — cuando está seteado, gana siempre sobre lo
+que el servidor declara vía `ENVCHANGE` (a diferencia de `Charset`, que solo se usa como fallback si el
+servidor no especifica nada — ver `EnvChangeTokenHandler.GetNewCharset`, sin cambios).
+
+- `IConnectionParameters`/`ConnectionParameters`: nueva propiedad `ActualCharset` (parseada del
+  connection string, alias `ActualCharset`/`Actual Charset`).
+- `EnvChangeTokenHandler`: constructor gana un tercer parámetro opcional `actualCharset`. En
+  `ApplyNewEncoding`, si está seteado, resuelve `_environment.Encoding` directo con
+  `Encoding.GetEncoding(actualCharset)` y no sigue el flujo normal (ni consulta `CharsetMap` ni el
+  charset que declaró el servidor) — mismo mensaje de error que el flujo normal si el charset no es
+  soportado (falta un `EncodingProvider`, ver más abajo).
+- `InternalConnection`: los 7 call sites que construían `new EnvChangeTokenHandler(_environment,
+  _parameters.Charset)` ahora pasan también `_parameters.ActualCharset`.
+
+### Hallazgo real durante el testing: `windows-1252` también necesita `CodePagesEncodingProvider`
+
+Igual que `cp850` (ver Fase 4 de `EntityFrameworkCore.Ase/DECISIONS.md`), `windows-1252` no es una de
+las codificaciones incluidas por defecto en .NET moderno — `Encoding.GetEncoding("windows-1252")` tira
+`ArgumentException` sin `Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)` registrado.
+**El driver nunca registra este provider por su cuenta** (confirmado: cero referencias a
+`RegisterProvider`/`CodePagesEncodingProvider` en todo `src/AdoNetCore.AseClient`) — queda
+completamente en manos del consumidor, igual que ya pasaba con `cp850`. No se cambió este
+comportamiento en este fix (mantenerlo así es coherente con lo que ya existía, y cambiarlo sería un
+cambio de alcance mayor no pedido) — pero es una mejora candidata real para más adelante: el driver
+podría registrar este provider por su cuenta al arrancar, ya que `ActualCharset` existe justamente para
+apuntar a charsets legacy como este.
+
+### Colisión de test real encontrada (y arreglada): `Encoding.RegisterProvider` es global e irreversible
+
+Al agregar el test nuevo (que necesita registrar el `CodePagesEncodingProvider` para poder resolver
+`windows-1252`), un test **preexistente** — `CharsetTests.OpenConnection_WithCharsetCp850_NoEncodingProvider_Throws`,
+que verifica el comportamiento *sin* ningún provider registrado — empezó a fallar, porque
+`Encoding.RegisterProvider` es una operación de proceso completo, sin forma de des-registrar. Como
+ambas suites de test corren en el mismo proceso de VSTest, una vez que algo registra el provider
+(sea `ActualCharsetTests` o cualquier otra cosa), queda registrado para el resto de esa corrida — el
+test que asume "todavía no hay ningún provider" deja de tener una precondición válida. Esto ya era una
+fragilidad latente del test original (dependía del orden de ejecución de los fixtures, nunca
+garantizado por NUnit) — el test nuevo solo la hizo determinística. Arreglado haciendo que ese test
+chequee su precondición explícitamente y use `Assert.Ignore(...)` en vez de fallar si otro fixture ya
+registró un provider en esa corrida, documentando la causa en el propio test.
+
+### Tests
+
+`test/AdoNetCore.AseClient.Tests/Integration/Connection/ActualCharsetTests.cs` (real, contra ASE) —
+mismo patrón que `EntityFrameworkCore.Ase`'s `MisdetectedCharsetFixTests`: se insertan los bytes
+crudos de `windows-1252` para "San Martín 730" vía un parámetro `binary` + `CONVERT`, bypaseando la
+codificación del driver. Tres tests: sin `ActualCharset` se lee corrupto (confirma que el default no
+cambió), con `ActualCharset=windows-1252` se lee correcto, y — a diferencia del fix de EF Core — un
+valor **escrito** a través de una conexión con `ActualCharset` configurado también se lee correcto de
+vuelta (confirma el comportamiento bidireccional).
+
+Suite completa verificada en verde: 1208 unitarios + 12 de integración relacionados a charset/pool
+(1 test preexistente correctamente omitido por la colisión documentada arriba), sin regresión.
+
+Versión bumpeada a `9.0.1` (pendiente de publicar al momento de escribir esto).

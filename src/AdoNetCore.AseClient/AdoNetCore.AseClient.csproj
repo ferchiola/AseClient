@@ -5,7 +5,7 @@
     <Description>.NET data provider for Sybase/SAP ASE. Fork of DataAction/AdoNetCore.AseClient — see README.md and DECISIONS.md.</Description>
     <Authors>Fernando Chiola</Authors>
     <PackageId>Chiola.AseClient</PackageId>
-    <Version>9.0.0</Version>
+    <Version>9.0.1</Version>
     <RepositoryUrl>https://github.com/ferchiola/AseClient</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>

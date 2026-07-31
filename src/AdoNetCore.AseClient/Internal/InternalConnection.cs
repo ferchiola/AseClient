@@ -180,7 +180,7 @@ namespace AdoNetCore.AseClient.Internal
                     _parameters.EncryptPassword));
 
             var ackHandler = new LoginTokenHandler();
-            var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset);
+            var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset, _parameters.ActualCharset);
             var messageHandler = new MessageTokenHandler(EventNotifier);
 
             ReceiveTokens(
@@ -239,7 +239,7 @@ namespace AdoNetCore.AseClient.Internal
 
             // 5. Expect an ack
             var ackHandler = new LoginTokenHandler();
-            var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset);
+            var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset, _parameters.ActualCharset);
             var messageHandler = new MessageTokenHandler(EventNotifier);
 
             ReceiveTokens(
@@ -299,7 +299,7 @@ namespace AdoNetCore.AseClient.Internal
             }));
             
             var messageHandler = new MessageTokenHandler(EventNotifier);
-            var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset);
+            var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset, _parameters.ActualCharset);
 
             ReceiveTokens(envChangeTokenHandler, messageHandler);
 
@@ -324,7 +324,7 @@ namespace AdoNetCore.AseClient.Internal
             {
                 SendPacket(new NormalPacket(BuildCommandTokens(command, behavior)));
 
-                var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset);
+                var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset, _parameters.ActualCharset);
                 var doneHandler = new DoneTokenHandler();
                 var dataReaderHandler = new StreamingDataReaderTokenHandler(readerSource, dataReader, EventNotifier);
                 var responseParameterTokenHandler = new ResponseParameterTokenHandler(command.AseParameters);
@@ -404,7 +404,7 @@ namespace AdoNetCore.AseClient.Internal
             {
                 SendPacket(new NormalPacket(BuildCommandTokens(command, CommandBehavior.Default)));
 
-                var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset);
+                var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset, _parameters.ActualCharset);
                 var messageHandler = new MessageTokenHandler(EventNotifier);
                 var responseParameterTokenHandler = new ResponseParameterTokenHandler(command.AseParameters);
                 var doneHandler = new DoneTokenHandler();
@@ -545,7 +545,7 @@ namespace AdoNetCore.AseClient.Internal
 
             SendPacket(new NormalPacket(OptionCommandToken.CreateSetTextSize(textSize)));
 
-            var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset);
+            var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset, _parameters.ActualCharset);
             var messageHandler = new MessageTokenHandler(EventNotifier);
             var dataReaderHandler = new DataReaderTokenHandler();
             var doneHandler = new DoneTokenHandler();
@@ -565,7 +565,7 @@ namespace AdoNetCore.AseClient.Internal
         {
             SendPacket(new NormalPacket(OptionCommandToken.CreateSetAnsiNull(enabled)));
 
-            var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset);
+            var envChangeTokenHandler = new EnvChangeTokenHandler(_environment, _parameters.Charset, _parameters.ActualCharset);
             var messageHandler = new MessageTokenHandler(EventNotifier);
             var doneHandler = new DoneTokenHandler();
 

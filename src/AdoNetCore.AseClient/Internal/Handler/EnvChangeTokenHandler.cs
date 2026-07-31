@@ -25,11 +25,32 @@ namespace AdoNetCore.AseClient.Internal.Handler
         };
         private readonly DbEnvironment _environment;
         private readonly string _clientRequestedCharset;
+        private readonly string _actualCharset;
 
-        public EnvChangeTokenHandler(DbEnvironment environment, string clientRequestedCharset)
+        /// <param name="environment">Where the resolved <see cref="Encoding"/> gets stored once known.</param>
+        /// <param name="clientRequestedCharset">
+        ///     The <c>Charset</c> connection string keyword — only used as a fallback if the server's
+        ///     ENVCHANGE response doesn't specify one (see <see cref="GetNewCharset"/>). The server's own
+        ///     declared charset otherwise always wins.
+        /// </param>
+        /// <param name="actualCharset">
+        ///     The <c>ActualCharset</c> connection string keyword — when set, unconditionally overrides
+        ///     whatever charset the server declares (see <see cref="ApplyNewEncoding"/>). Exists for
+        ///     servers that declare one charset (commonly a stale/default install setting, e.g. `cp850`)
+        ///     while the bytes actually on disk were written in a different one (commonly `windows-1252`,
+        ///     from a client that never negotiated charset correctly) — a mismatch that otherwise produces
+        ///     silently wrong (but not erroring) text for every string column. Verified against a real
+        ///     production case: byte `0xED` is `í` in `windows-1252` but `Ý` in `cp850`. Applies to both
+        ///     reads and writes, since the server doesn't perform any real charset conversion in this
+        ///     scenario either way (bytes pass through as sent) — see `Chiola.EntityFrameworkCore.Ase`'s
+        ///     `DECISIONS.md` for the read-only workaround this superseded, and this project's own
+        ///     `DECISIONS.md` for why this is the better fix location.
+        /// </param>
+        public EnvChangeTokenHandler(DbEnvironment environment, string clientRequestedCharset, string actualCharset = null)
         {
             _environment = environment;
             _clientRequestedCharset = clientRequestedCharset;
+            _actualCharset = actualCharset;
         }
 
         public bool CanHandle(TokenType type)
@@ -88,6 +109,23 @@ namespace AdoNetCore.AseClient.Internal.Handler
 
         private void ApplyNewEncoding(string newCharset)
         {
+            // ActualCharset always wins, regardless of what the server declared - see the constructor's
+            // XML doc for why (a mismatched/stale server-declared charset should not silently corrupt
+            // every string column just because the server thinks it knows better).
+            if (!string.IsNullOrEmpty(_actualCharset))
+            {
+                try
+                {
+                    _environment.Encoding = Encoding.GetEncoding(_actualCharset);
+                }
+                catch
+                {
+                    throw new AseException($"ActualCharset '{_actualCharset}' is not a supported charset. To add support for this charset, register an EncodingProvider to handle targeting '{_actualCharset}'.");
+                }
+
+                return;
+            }
+
             if (!newCharset.Equals(string.Empty))
             {
                 if (CharsetMap.ContainsKey(newCharset))

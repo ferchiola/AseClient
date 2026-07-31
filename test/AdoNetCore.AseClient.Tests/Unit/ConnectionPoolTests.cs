@@ -460,6 +460,7 @@ namespace AdoNetCore.AseClient.Tests.Unit
             public string ClientHostName { get; }
             public string ClientHostProc { get; }
             public string Charset { get; }
+            public string ActualCharset { get; }
             public bool Pooling { get; } = true;
             public short MaxPoolSize { get; set; } = 100;
             public short MinPoolSize { get; set; }

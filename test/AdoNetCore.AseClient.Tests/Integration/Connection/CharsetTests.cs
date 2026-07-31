@@ -44,6 +44,21 @@ namespace AdoNetCore.AseClient.Tests.Integration.Connection
         [Test]
         public void OpenConnection_WithCharsetCp850_NoEncodingProvider_Throws()
         {
+            // Encoding.RegisterProvider is process-wide and irreversible - if some other test fixture in
+            // this same test run already registered a codepages provider (e.g. ActualCharsetTests, which
+            // needs one for windows-1252), cp850 now resolves regardless of what this test does, and the
+            // precondition this test relies on no longer holds. Skip rather than fail in that case - this
+            // isn't a real regression, just two tests sharing one process's global encoding registry.
+            try
+            {
+                Encoding.GetEncoding("cp850");
+                Assert.Ignore("A codepages EncodingProvider is already registered by another test fixture in this run - this test's precondition (no provider registered) isn't met.");
+            }
+            catch (ArgumentException)
+            {
+                // expected: cp850 isn't resolvable yet, precondition holds, proceed with the real test
+            }
+
             using (var connection = new AseConnection(ConnectionStrings.Cp850))
             {
                 Assert.Throws<AseException>(() => connection.Open());
