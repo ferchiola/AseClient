@@ -1,17 +1,27 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp1.0;netcoreapp1.1;netcoreapp2.0;netcoreapp2.1;netcoreapp2.2;net46</TargetFrameworks>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
+    <!-- Ver el comentario largo en el csproj de src sobre estos flags. NET_CORE (a diferencia de las
+         ENABLE_* del proyecto principal) es un flag propio de este proyecto de tests, ver
+         Integration/Connection/CharsetTests.cs — selecciona el comportamiento real de .NET moderno
+         (cp850 no viene soportado out-of-the-box sin un EncodingProvider registrado), a diferencia de
+         .NET Framework clásico. -->
+    <DefineConstants>$(DefineConstants);NET_CORE;ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS;ENABLE_DB_PROVIDERFACTORY</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Dapper" Version="1.60.6" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
-    <PackageReference Include="Moq" Version="4.10.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
-    <PackageReference Include="NUnit" Version="3.12.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="3.13.0" />
-    
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="4.5.1" />
+    <PackageReference Include="Dapper" Version="2.*" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
+    <PackageReference Include="Moq" Version="4.20.*" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.*" />
+    <!-- Pineado a NUnit 3.x a propósito: NUnit 4 movió CollectionAssert/StringAssert a un namespace
+         nuevo (NUnit.Framework.Legacy), lo que hubiera requerido tocar varios archivos de test solo
+         para el setup inicial del fork — no vale la pena ahora (ver README: "fork ahora, analizar y
+         resolver cosas después"). NUnit 3.14.x compila y corre limpio contra net9.0 tal cual. -->
+    <PackageReference Include="NUnit" Version="3.14.*" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.*" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="9.*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\AdoNetCore.AseClient\AdoNetCore.AseClient.csproj" />
@@ -20,30 +30,5 @@
     <None Update="DatabaseLoginDetails.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net46'">
-    <DefineConstants>$(DefineConstants);NET_FRAMEWORK</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'netcoreapp1.1' Or '$(TargetFramework)' == 'netcoreapp1.0'">
-    <DefineConstants>$(DefineConstants);NET_CORE</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'net46' Or '$(TargetFramework)' == 'netstandard2.0'">
-    <DefineConstants>$(DefineConstants);ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'net46'">
-    <DefineConstants>$(DefineConstants);ENABLE_DB_PROVIDERFACTORY</DefineConstants>
-  </PropertyGroup>
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp1.0' ">
-    <PackageReference Include="System.Data.Common" Version="4.3.0" />
-    <PackageReference Include="System.Net.Security" Version="4.3.2" />
-  </ItemGroup>
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">
-    <PackageReference Include="System.Data.Common" Version="4.3.0" />
-    <PackageReference Include="System.Net.Security" Version="4.3.2" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
-    <PackageReference Include="Sybase.AdoNet4.AseClient">
-      <Version>1.0.0</Version>
-    </PackageReference>
   </ItemGroup>
 </Project>

@@ -1,16 +1,35 @@
-# ![icon](icon.png "icon") AdoNetCore.AseClient
+# Chiola.AseClient
 
-A .NET Core DB Provider for SAP ASE
+> **This is a fork of [DataAction/AdoNetCore.AseClient](https://github.com/DataAction/AdoNetCore.AseClient)**,
+> a .NET data provider for SAP/Sybase ASE originally created and maintained by
+> [DataAction](https://github.com/DataAction) and its contributors. All credit for the original TDS
+> protocol implementation goes to them — see [LICENSE](LICENSE) (Apache-2.0, preserved from upstream).
+>
+> **Why this fork exists:** built as the driver dependency for
+> [`Chiola.EntityFrameworkCore.Ase`](https://github.com/ferchiola/EntityFrameworkCore.Ase), a from-scratch
+> EF Core provider for SAP ASE. Several real bugs and gaps in the upstream driver were found and worked
+> around while building that provider (see its `DECISIONS.md`) — this fork exists to fix them directly
+> at the source instead of accumulating workarounds downstream.
+>
+> **What changed from upstream so far** (as of the initial fork — see the repo's commit history for
+> anything after this):
+> - Trimmed to target **`net9.0` only**. Upstream targets a wide range of legacy frameworks
+>   (`netcoreapp1.0` through `netstandard2.0`/`net46`, from 2016-2018) — this fork has a single modern
+>   consumer, so that whole compatibility matrix (and its `#if`/`DefineConstants` complexity) was
+>   dropped in favor of one target.
+> - Dropped the `AdoNetCore.AseClient.StrongName` project and the `AdoNetCore.AseClient.Benchmark`
+>   project (outdated `BenchmarkDotNet` 0.10.14, not relevant to this fork's goal). Neither is needed by
+>   the EF Core provider this fork serves.
+> - Test project pinned to NUnit 3.x (upstream's actual test suite, ~1200 unit tests + a real
+>   integration suite against live ASE) rather than upgrading to NUnit 4 outright, to avoid churn from
+>   its `CollectionAssert`/`StringAssert` namespace move — revisit later if worth it.
+> - No functional/bug fixes yet — this initial fork is a straight port to net9.0, nothing more. Bug
+>   fixes come next (see the project's own notes for what's tracked).
+>
+> Package published as **`Chiola.AseClient`** on NuGet (not `AdoNetCore.AseClient`, to avoid clashing
+> with the upstream package).
 
-[![CodeFactor](https://www.codefactor.io/repository/github/dataaction/adonetcore.aseclient/badge)](https://www.codefactor.io/repository/github/dataaction/adonetcore.aseclient)
-[![Join the chat at https://gitter.im/DataAction/AdoNetCore.AseClient](https://badges.gitter.im/DataAction/AdoNetCore.AseClient.svg)](https://gitter.im/DataAction/AdoNetCore.AseClient?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-Packages available at NuGet:
-
-| Name                                               | Version
-| -------------------------------------------------- | -------
-| `AdoNetCore.AseClient` (Recommended)               | [![AdoNetCore.AseClient@NuGet](https://img.shields.io/nuget/v/AdoNetCore.AseClient.svg)](https://www.nuget.org/packages/AdoNetCore.AseClient)
-| `AdoNetCore.AseClient.StrongName` (Strongly Named) | [![AdoNetCore.AseClient.StrongName@NuGet](https://img.shields.io/nuget/v/AdoNetCore.AseClient.StrongName.svg)](https://www.nuget.org/packages/AdoNetCore.AseClient.StrongName)
+A .NET data provider for SAP ASE — fork of DataAction/AdoNetCore.AseClient.
 
 SAP (formerly Sybase) has supported accessing the ASE database management system from ADO.NET for many years. Unfortunately SAP has not yet made a driver available to support .NET Core, so this project enables product teams that are dependent upon ASE to keep moving their application stack forwards.
 
@@ -57,62 +76,14 @@ The latest stable release of the AdoNetCore.AseClient is [available on NuGet](ht
     * TraceEnterEventHandler
     * TraceExitEventHandler
 
-* Not all features are currently supported, and some features will not be supported. Refer to [Unsupported features](https://github.com/DataAction/AdoNetCore.AseClient/wiki/Unsupported-features).
+* Not all features are currently supported, and some features will not be supported. Refer to upstream's [Unsupported features](https://github.com/DataAction/AdoNetCore.AseClient/wiki/Unsupported-features) wiki page (still applicable — this fork hasn't diverged on feature support yet).
 * Performance equivalent to or better than that of `Sybase.Data.AseClient` provided by SAP. This is possible as we are eliminating the COM and OLE DB layers from this driver and .NET Core is fast.
-* Target all versions of .NET Core (1.0, 1.1, 2.0, 2.1 and 2.2)
+* Target `net9.0` (see the fork notice at the top of this README for why this differs from upstream's wider target matrix).
 * Should work with [Dapper](https://github.com/StackExchange/Dapper) at least as well as the `Sybase.Data.AseClient`
 
 ## Performance benchmarks
 
-### Test methodology
-To help adopt the `AdoNetCore.AseClient`, we have benchmarked it against the `Sybase.Data.AseClient`. See the wiki for how to [run the benchmarks yourself](https://github.com/DataAction/AdoNetCore.AseClient/wiki/Running-the-benchmarks).
-
-We have benchmarked the `AdoNetCore.AseClient` against the `Sybase.Data.AseClient` in the following ways:
-
-#### Single read, without pooling
-Open a connection (unpooled) and invoke AseCommand.ExecuteReader(...) once and read back one row of data.
-
-#### Single read, with pooling
-Open a connection (pooled) and invoke AseCommand.ExecuteReader(...) once and read back one row of data.
-
-#### Multiple reads, without pooling
-Open a connection (unpooled) and invoke AseCommand.ExecuteReader(...) once and read back 12 rows of data.
-
-#### Multiple reads, with pooling
-Open a connection (pooled) and invoke AseCommand.ExecuteReader(...) once and read back 12 rows of data.
-
-#### Multiple reads, multiple times, without pooling
-Open a connection (unpooled) and invoke AseCommand.ExecuteReader(...) 9 times, and read back 11-12 rows of data each time.
-
-#### Multiple reads, multiple times, with pooling
-Open a connection (pooled) and invoke AseCommand.ExecuteReader(...) 9 times, and read back 11-12 rows of data each time.
-
-#### Multiple reads, multiple writes, without pooling
-Open a connection (unpooled) and invoke AseCommand.ExecuteReader(...) once, reading back 56 rows of data. Prepare a new AseCommand and invoke AseCommand.ExecuteNonQuery(...) for each of the 56 rows to update the database.
-
-#### Multiple reads, multiple writes, with pooling
-Open a connection (pooled) and invoke AseCommand.ExecuteReader(...) once, reading back 56 rows of data. Prepare a new AseCommand and invoke AseCommand.ExecuteNonQuery(...) for each of the 56 rows to update the database.
-
-We perform these tests for .NET Core 1.1, .NET Core 2.0, and .NET Standard 4.6 using the `AdoNetCore.AseClient`. For comparison, we also perform these tests on .NET Standard 4.6 using the `Sybase.Data.AseClient` from SAP.
-
-### Environment
-The goal of the benchmarking is not to establish the absolute performance of the driver or the ASE Server, but to show its equivalence as a substitute. As such, the test client and database server have been held constant in all tests.
-
-#### Server:
-Adaptive Server Enterprise/16.0 SP03 PL02/EBF 27413 SMP/P/AMD64/Windows 2008 R2 SP1/ase160sp03pl02x/0/64-bit/FBO/Fri Oct 06 14:34:03 2017
-
-#### Client:
-BenchmarkDotNet=v0.10.11, OS=Windows 10 Redstone 2 [1703, Creators Update] (10.0.15063.726)
-Processor=Intel Core i7-6700 CPU 3.40GHz (Skylake), ProcessorCount=8
-Frequency=3328123 Hz, Resolution=300.4697 ns, Timer=TSC
-.NET Core SDK=2.1.3
-  [Host]     : .NET Core 2.0.4 (Framework 4.6.25921.01), 64bit RyuJIT
-  DefaultJob : .NET Core 2.0.4 (Framework 4.6.25921.01), 64bit RyuJIT
-
-### Test results
-In all of the test cases the `AdoNetCore.AseClient` performed better or equivalent to the `Sybase.Data.AseClient`.
-
-![AdoNetCore.AseClient vs Sybase.Data.AseClient](benchmarks.png "AdoNetCore.AseClient vs Sybase.Data.AseClient")
+The benchmark project (`AdoNetCore.AseClient.Benchmark`) and its historical results against `Sybase.Data.AseClient` were dropped in this fork (see the fork notice above) — not relevant to this fork's goal of serving `Chiola.EntityFrameworkCore.Ase`. See [upstream's README](https://github.com/DataAction/AdoNetCore.AseClient#performance-benchmarks) for the original methodology and results.
 
 ## Connection strings
 [connectionstrings.com](https://www.connectionstrings.com/sybase-adaptive/) lists the following connection string properties for the ASE ADO.NET Data Provider. In keeping with our objective of being a drop-in replacement for the `Sybase.Data.AseClient`, we aim to use identical connection string syntax to the `Sybase.Data.AseClient`, however our support for the various properties will be limited. Our support is as follows:
