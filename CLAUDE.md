@@ -17,22 +17,38 @@ En vez de seguir acumulando workarounds en la capa de EF Core, este fork existe 
 directo en la fuente.
 
 **Plan** (a 2026-07-31, en progreso): 1) fork inicial + atribución en README (hecho), 2) analizar el
-driver y resolver los bugs/gaps encontrados (en progreso), 3) publicar como paquete NuGet propio
-(`Chiola.AseClient`), 4) reemplazar la dependencia `AdoNetCore.AseClient` de
-`EntityFrameworkCore.Ase` por este paquete propio.
+driver y resolver los bugs/gaps encontrados (en progreso — `ClearPool`/`ClearPools` y la limpieza
+proactiva de idle ya resueltos, ver `DECISIONS.md`), 3) publicar como paquete NuGet propio
+(`Chiola.AseClient`/`Chiola.AseClient.StrongName`), 4) reemplazar la dependencia `AdoNetCore.AseClient`
+de `EntityFrameworkCore.Ase` por este paquete propio.
 
 ## Stack
 
-.NET 9 (`net9.0` únicamente — ver nota de fork en README sobre por qué se recortó del rango de
-targets legacy del original). C# con `LangVersion=latest`. Tests con NUnit 3.x (heredado del
-original, no NUnit 4 — ver nota de fork).
+`src/AdoNetCore.AseClient` y `src/AdoNetCore.AseClient.StrongName` targetean **toda la matriz del
+original** (`netcoreapp1.0`/`1.1`/`2.0`/`2.1`/`2.2`, `net46`, `netstandard2.0`) **más `net9.0`** — a
+pedido explícito del usuario (2026-07-31): el fork había arrancado recortado a solo `net9.0`, pero se
+restauró la matriz completa para que el paquete le sirva a cualquiera que use el driver original en un
+proyecto más viejo, no solo al caso de uso propio. `net9.0` se agregó a la lista, no la reemplazó — ver
+`build/common.props` para el detalle de qué `DefineConstants` aplica cada target (y por qué `net9.0`
+usa la combinación "más capaz", igual que antes). C# `LangVersion=7` para todos los targets salvo
+`net9.0` (`latest` — necesario por un bug real del parser del SDK de esta máquina contra Dapper, no
+del código, ver `DECISIONS.md`/README).
+
+El proyecto de **tests** (`test/AdoNetCore.AseClient.Tests`) sigue targeteando **solo `net9.0`** — no
+se restauró su propia matriz vieja (paquetes de test tipo NUnit/Moq/Dapper en versiones modernas no
+necesariamente compilan contra `netcoreapp1.0`/`net46`, y no es necesario para verificar que el
+paquete multi-target compila: alcanza con que `src/` compile en cada target, verificado con
+`dotnet build -f <tfm>` por separado). Tests con NUnit 3.x (heredado del original, no NUnit 4 — ver
+nota de fork).
 
 ## Comandos útiles
 
 ```
-dotnet build                                                    # toda la solución
-dotnet test --filter "TestCategory!=integration&FullyQualifiedName!~Integration"   # solo unit tests (~1200, sin ASE real)
-dotnet test --filter "FullyQualifiedName~.Integration."         # suite de integración completa, requiere ASE real
+dotnet build                                                    # toda la solución (src multi-target + test net9.0)
+dotnet build src/AdoNetCore.AseClient/AdoNetCore.AseClient.csproj -f <tfm>   # compilar un target puntual (ver lista arriba)
+dotnet pack src/AdoNetCore.AseClient/AdoNetCore.AseClient.csproj -c Release  # nupkg multi-target, con un lib/<tfm> por cada uno
+dotnet test --filter "TestCategory!=integration&FullyQualifiedName!~Integration"   # solo unit tests (~1200, sin ASE real, net9.0)
+dotnet test --filter "FullyQualifiedName~.Integration."         # suite de integración completa, requiere ASE real (net9.0)
 ```
 
 ### Instancia de ASE para tests de integración
@@ -55,8 +71,7 @@ para el formato).
 - Mismo criterio que `EntityFrameworkCore.Ase`: no asumir comportamiento de ASE por analogía con SQL
   Server u otro motor — verificar contra la instancia real antes de dar por sentado un fix.
 - Cambios de comportamiento/bugs reales encontrados y su fix: documentar en `DECISIONS.md` de este
-  proyecto (crear cuando haya el primer fix real — todavía no existe, el fork inicial fue un port
-  directo a net9.0 sin cambios funcionales).
+  proyecto (ya existe, con los primeros dos fixes reales).
 - No se pidió (todavía) cambiar el framework de tests de NUnit a xUnit, ni resolver los warnings
   `SYSLIB0051`/`SYSLIB0057` (serialización legacy, `X509Certificate2` constructor obsoleto) que
   aparecen al compilar — quedan como candidatos para la fase de análisis, no bloquean nada hoy.

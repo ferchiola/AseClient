@@ -1,0 +1,78 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      Restaurada la matriz de targets completa del original (ver git history / upstream/master) — a
+      pedido explícito del usuario (2026-07-31): el fork empezó recortado a net9.0 (único consumidor
+      real hoy, EntityFrameworkCore.Ase), pero un paquete multi-target puede servirle a cualquiera que
+      use el AdoNetCore.AseClient original en un proyecto más viejo, no solo a nosotros. Se agregó
+      net9.0 a la lista original en vez de reemplazarla.
+    -->
+    <TargetFrameworks>netcoreapp1.0;netcoreapp1.1;netcoreapp2.0;netcoreapp2.1;netcoreapp2.2;net46;netstandard2.0;net9.0</TargetFrameworks>
+    <VersionPrefix>0.20.0</VersionPrefix>
+    <AssemblyVersion>0.11.0.0</AssemblyVersion>
+    <FileVersion>$(VersionPrefix)</FileVersion>
+    <Authors>Fernando Chiola</Authors>
+    <PackageTags>Sybase ASE Adaptive SAP AseClient DbProvider</PackageTags>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/ferchiola/AseClient</PackageProjectUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReleaseNotes>Fork of DataAction/AdoNetCore.AseClient — see README.md and DECISIONS.md for what changed.</PackageReleaseNotes>
+    <RepositoryUrl>https://github.com/ferchiola/AseClient</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net46'">
+    <DefineConstants>$(DefineConstants);NET_FRAMEWORK</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'net46' Or '$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net9.0'">
+    <DefineConstants>$(DefineConstants);ENABLE_DB_PROVIDERFACTORY</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'net46'">
+    <DefineConstants>$(DefineConstants);ENABLE_DB_DATAPERMISSION</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'net46' Or '$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net9.0'">
+    <DefineConstants>$(DefineConstants);ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS;ENABLE_CLONEABLE_INTERFACE;ENABLE_SYSTEMEXCEPTION</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0' Or '$(TargetFramework)' == 'netcoreapp1.0' Or '$(TargetFramework)' == 'netcoreapp1.1' Or '$(TargetFramework)' == 'net9.0'">
+    <DefineConstants>$(DefineConstants);ENABLE_ARRAY_POOL</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp1.0' Or '$(TargetFramework)' == 'netcoreapp1.1'">
+    <DefineConstants>$(DefineConstants);LONG_ARRAY_COPY_UNAVAILABLE</DefineConstants>
+  </PropertyGroup>
+  <!-- net9.0 no soporta el parser de C# 13 default (LangVersion ligado al TargetFramework) contra una
+       llamada genérica común de Dapper en el proyecto de tests — bug real del compilador en el SDK de
+       esta máquina (.NET 10), no algo del código. Se sube a "latest" solo para este target; el resto
+       se deja con el LangVersion=7 original del csproj de src. -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net9.0'">
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp1.0' ">
+    <PackageReference Include="System.Data.Common" Version="4.3.0" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">
+    <PackageReference Include="System.Data.Common" Version="4.3.0" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp2.2' Or '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp2.0'">
+    <PackageReference Include="System.Security.Permissions">
+      <Version>4.5.0</Version>
+    </PackageReference>
+  </ItemGroup>
+  <PropertyGroup>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../icon.png" Pack="true" Visible="false" PackagePath="" />
+    <None Include="../../README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup Label="SourceLink">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <PropertyGroup Label="SourceLink Settings">
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <DebugType>Embedded</DebugType>
+    <EmbedAllSources>True</EmbedAllSources>
+  </PropertyGroup>
+</Project>

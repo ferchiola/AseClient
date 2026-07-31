@@ -1,50 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\build\common.props"></Import>
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Description>.NET data provider for Sybase/SAP ASE. Fork of DataAction/AdoNetCore.AseClient, trimmed to target net9.0 only — see README.md.</Description>
-    <Authors>Fernando Chiola</Authors>
+    <Description>.NET data provider for Sybase/SAP ASE. Fork of DataAction/AdoNetCore.AseClient — see README.md and DECISIONS.md.</Description>
     <PackageId>Chiola.AseClient</PackageId>
-    <RepositoryUrl>https://github.com/ferchiola/AseClient</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageTags>Sybase;ASE;Adaptive;SAP;AseClient;DbProvider</PackageTags>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
-    <DebugType>Embedded</DebugType>
-    <EmbedAllSources>true</EmbedAllSources>
   </PropertyGroup>
-
-  <!--
-    Flags que en el original (build/common.props) variaban según el TargetFramework (netcoreapp1.0
-    a netstandard2.0/net46). Simplificado a un único target (net9.0) — ver README.md — así que se
-    fijan acá directo, al valor "más capaz" que el original usaba para sus targets más modernos:
-
-      - ENABLE_ARRAY_POOL: sí. Camino de buffers con System.Buffers.ArrayPool<byte> (evita
-        allocations por paquete TDS) en vez de `new byte[]` — disponible en el BCL desde hace años,
-        sin motivo para no usarlo en net9.0.
-      - ENABLE_DB_PROVIDERFACTORY: sí. Soporte real de DbProviderFactory (AseClientFactory,
-        AseConnection.DbProviderFactory, AseDataSourceEnumerator) — API de ADO.NET estándar,
-        totalmente soportada en .NET moderno.
-      - ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS / ENABLE_CLONEABLE_INTERFACE / ENABLE_SYSTEMEXCEPTION:
-        sí. Los tres eran el default para casi todos los targets del original salvo netcoreapp1.x
-        (el más viejo) — no hay motivo para no habilitarlos en net9.0.
-      - ENABLE_DB_DATAPERMISSION: NO definido a propósito. Guarda AseClientPermission/
-        AseClientPermissionAttribute, que en el código original es un stub sin implementación real
-        ("Code Access Security is no longer recommended by Microsoft") — requeriría agregar el
-        paquete System.Security.Permissions solo para compilar un stub sin funcionalidad real. No
-        se pidió, y ningún consumidor (EntityFrameworkCore.Ase) lo necesita.
-
-    Pendiente de auditar en detalle más adelante (ver plan del usuario: "fork ahora, analizar y
-    resolver cosas después") — esto es una primera pasada razonable para que el fork compile con el
-    comportamiento más moderno disponible, no una revisión exhaustiva de cada #if.
-  -->
   <PropertyGroup>
-    <DefineConstants>$(DefineConstants);ENABLE_ARRAY_POOL;ENABLE_DB_PROVIDERFACTORY;ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS;ENABLE_CLONEABLE_INTERFACE;ENABLE_SYSTEMEXCEPTION</DefineConstants>
+    <LangVersion>7</LangVersion>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
-  </ItemGroup>
 </Project>

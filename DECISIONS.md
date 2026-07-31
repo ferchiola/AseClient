@@ -131,6 +131,85 @@ hacía imposible escribir el test de arriba. Fix: `Created`/`LastActive` ahora s
 Suite completa verificada en verde después del cambio: 1208 tests unitarios (0 fallos, +1 sobre el
 fix anterior) + los 8 de `AseConnectionPoolManagerTests` contra ASE real (0 fallos, sin regresión).
 
+## Restaurada la matriz completa de target frameworks (2026-07-31)
+
+A pedido explícito del usuario: "esto beneficiaría a los usuarios del driver original, deberíamos
+volver a aceptar todos los targets por si le sirve a alguien más". El fork había arrancado (ver
+primera sección de este documento y `README.md`) recortado a `net9.0` únicamente, razonado en su
+momento como "el único consumidor real es `EntityFrameworkCore.Ase`, que es net9.0". Revertido: un
+paquete NuGet multi-target puede servirle a cualquiera que use `AdoNetCore.AseClient` original en un
+proyecto viejo, no solo a nuestro propio caso de uso — no hay motivo real para no ofrecer ambas cosas
+a la vez.
+
+Se aclaró primero el alcance con el usuario antes de tocar nada, porque había una ambigüedad real: (a)
+¿ampliar nuestro propio fork, o (b) preparar los fixes de `ClearPool`/idle-sweep como Pull Request
+contra el repo original de DataAction, para que lleguen a todos los usuarios de ESE paquete, no solo a
+quien encuentre este fork? El usuario eligió explícitamente (a) — solo ampliar este fork, sin abrir PR
+upstream. Si más adelante se decide ir por (b), es un trabajo aparte (un PR necesitaría un diff mínimo
+contra la estructura original, no partir de este fork ya reorganizado).
+
+### Qué se restauró
+
+- `build/common.props`: recuperado de `upstream/master` vía `git show`, con la `TargetFrameworks`
+  original (`netcoreapp1.0;netcoreapp1.1;netcoreapp2.0;netcoreapp2.1;netcoreapp2.2;net46;netstandard2.0`)
+  — se **agregó** `net9.0` a esa lista, no se reemplazó. Metadata de paquete actualizada (Authors,
+  RepositoryUrl, etc.) para reflejar este fork en vez de copiar la del original tal cual (sería
+  atribución incorrecta). `VersionPrefix` subido a `0.20.0` (de `0.19.2`) — señala que hay cambios de
+  comportamiento reales encima de la base del original, no solo un recompile.
+- Las condiciones de `DefineConstants` por target se mantuvieron tal cual el original para los targets
+  legacy; se agregó `net9.0` a las mismas condiciones donde corresponde, reproduciendo exactamente la
+  combinación "más capaz" que se había elegido a mano cuando el fork era net9.0-only (ver la primera
+  sección de este documento) — `ENABLE_ARRAY_POOL`, `ENABLE_DB_PROVIDERFACTORY`,
+  `ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS`, `ENABLE_CLONEABLE_INTERFACE`, `ENABLE_SYSTEMEXCEPTION`
+  definidos para `net9.0`; `ENABLE_DB_DATAPERMISSION` no (sigue sin agregarse el paquete
+  `System.Security.Permissions` solo para un stub sin funcionalidad real — mismo criterio que antes).
+  `LangVersion=latest` se mantiene, pero ahora **solo para `net9.0`** vía condición (el resto de los
+  targets vuelve al `LangVersion=7` original del csproj de src) — el bug de parser de Roslyn contra
+  Dapper que forzó ese cambio (ver primera sección) es específico del SDK de .NET 10 de esta máquina
+  compilando `net9.0`, no algo que afecte a los targets legacy.
+- `src/AdoNetCore.AseClient.StrongName` (proyecto + `build/AdoNetCore.AseClient.snk`, restaurado desde
+  `upstream/master` vía `git show` — verificado byte a byte con `git hash-object` que el `.snk`
+  binario no se corrompió en la restauración) — vuelve a existir, con `PackageId` propio
+  `Chiola.AseClient.StrongName`. `AdoNetCore.AseClient.Benchmark` **no** se restauró (segunda vez que
+  se descarta explícitamente: `BenchmarkDotNet` 0.10.14 desactualizado, sin relación con el objetivo de
+  este fork) — el pedido del usuario fue específicamente sobre targets, no sobre el proyecto de
+  benchmarks.
+- Se agregó `PackageReadmeFile`/`README.md` empaquetado (`common.props`) — no era parte de lo pedido,
+  pero `dotnet pack` avisaba de su ausencia como best-practice faltante y ya que se estaba tocando la
+  metadata del paquete, se sumó.
+
+### Qué NO se restauró
+
+- El proyecto de **tests** sigue targeteando solo `net9.0` (no se le devolvió su propia matriz vieja
+  de `TargetFrameworks` ni los paquetes/condiciones específicas de cada target legacy que tenía). Los
+  paquetes de test en versiones modernas (NUnit 3.14, Moq 4.20, Dapper 2.x, etc.) no necesariamente
+  compilan contra frameworks tan viejos como `netcoreapp1.0`/`net46`, y no hace falta para el objetivo
+  real (que el paquete `src/` compile y funcione en cada target) — alcanza con verificar cada target
+  de `src/` por separado con `dotnet build -f <tfm>`, que es justamente cómo se verificó este cambio.
+- No se auditó línea por línea cada rama `#if` de los targets legacy — se restauraron las condiciones
+  tal cual estaban en el `common.props` original (que ya venían probadas por años de uso real del
+  proyecto original), solo agregando `net9.0` donde correspondía. Sigue siendo cierto lo que ya decía
+  la primera sección de este documento: no hay tests automatizados corriendo contra
+  `netcoreapp1.0`/`net46`/etc., solo verificación de que compilan.
+
+### Verificación
+
+- `dotnet build -f <tfm>` para cada uno de los 8 targets de `src/AdoNetCore.AseClient` — los 8
+  compilan limpio, 0 errores (`netcoreapp1.0`, `netcoreapp1.1`, `netcoreapp2.0`, `netcoreapp2.1`,
+  `netcoreapp2.2`, `net46`, `netstandard2.0`, `net9.0`). Mismo resultado para
+  `AdoNetCore.AseClient.StrongName`.
+- `dotnet pack -c Release`: genera `Chiola.AseClient.0.20.0.nupkg` con un `lib/<tfm>/` por cada uno de
+  los 8 targets — confirmado inspeccionando el contenido del `.nupkg` directamente (no solo que el
+  build no tirara error).
+- Advertencias `NU1903`/`NU1902` (vulnerabilidades conocidas en `Microsoft.NETCore.App` para
+  `netcoreapp2.2`) aparecen al compilar/empaquetar ese target — son inherentes a targetear un
+  framework fuera de soporte hace años (la referencia implícita al framework trae esa versión del
+  metapaquete), no algo introducido por este cambio ni arreglable sin dejar de targetear esos
+  frameworks.
+- Suite completa de tests (net9.0, sin cambios de alcance): 1208 unitarios + 8 de
+  `AseConnectionPoolManagerTests` contra ASE real, ambos en verde — sin regresión respecto a los dos
+  fixes anteriores.
+
 ### Nota aparte, no de este fix: un test host se cuelga corriendo la suite de integración completa
 
 Al intentar correr `dotnet test --filter "FullyQualifiedName~.Integration."` completo (antes de este

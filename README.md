@@ -11,23 +11,26 @@
 > around while building that provider (see its `DECISIONS.md`) — this fork exists to fix them directly
 > at the source instead of accumulating workarounds downstream.
 >
-> **What changed from upstream so far** (as of the initial fork — see the repo's commit history for
-> anything after this):
-> - Trimmed to target **`net9.0` only**. Upstream targets a wide range of legacy frameworks
->   (`netcoreapp1.0` through `netstandard2.0`/`net46`, from 2016-2018) — this fork has a single modern
->   consumer, so that whole compatibility matrix (and its `#if`/`DefineConstants` complexity) was
->   dropped in favor of one target.
-> - Dropped the `AdoNetCore.AseClient.StrongName` project and the `AdoNetCore.AseClient.Benchmark`
->   project (outdated `BenchmarkDotNet` 0.10.14, not relevant to this fork's goal). Neither is needed by
->   the EF Core provider this fork serves.
+> **What changed from upstream** (see `DECISIONS.md` for the full history and reasoning behind each of
+> these):
+> - **Targets `net9.0` in addition to upstream's full legacy matrix** (`netcoreapp1.0` through
+>   `netstandard2.0`/`net46`). The fork briefly dropped everything but `net9.0` (its only consumer at
+>   the time), then restored the original matrix so this package can benefit anyone still on an older
+>   target, not just this fork's own use case — `net9.0` was added on top, not swapped in.
+> - Dropped the `AdoNetCore.AseClient.Benchmark` project (outdated `BenchmarkDotNet` 0.10.14, not
+>   relevant to this fork's goal) — `AdoNetCore.AseClient.StrongName` was kept (restored alongside the
+>   target matrix).
 > - Test project pinned to NUnit 3.x (upstream's actual test suite, ~1200 unit tests + a real
 >   integration suite against live ASE) rather than upgrading to NUnit 4 outright, to avoid churn from
->   its `CollectionAssert`/`StringAssert` namespace move — revisit later if worth it.
-> - No functional/bug fixes yet — this initial fork is a straight port to net9.0, nothing more. Bug
->   fixes come next (see the project's own notes for what's tracked).
+>   its `CollectionAssert`/`StringAssert` namespace move — revisit later if worth it. The test project
+>   itself only runs against `net9.0` today (not the full matrix like `src/`) — see `CLAUDE.md`.
+> - **Real bug fixes** (see `DECISIONS.md` for each): `AseConnection.ClearPool()`/`ClearPools()` were
+>   literal no-ops upstream (`//todo: implement`) — implemented for real via a pool-generation pattern.
+>   Added proactive idle-connection eviction to the pool (previously only checked lazily, when a
+>   connection was next reserved — a pool that went idle just stayed open on the server forever).
 >
-> Package published as **`Chiola.AseClient`** on NuGet (not `AdoNetCore.AseClient`, to avoid clashing
-> with the upstream package).
+> Package published as **`Chiola.AseClient`** / **`Chiola.AseClient.StrongName`** on NuGet (not
+> `AdoNetCore.AseClient`, to avoid clashing with the upstream package).
 
 A .NET data provider for SAP ASE — fork of DataAction/AdoNetCore.AseClient.
 
@@ -78,7 +81,7 @@ The latest stable release of the AdoNetCore.AseClient is [available on NuGet](ht
 
 * Not all features are currently supported, and some features will not be supported. Refer to upstream's [Unsupported features](https://github.com/DataAction/AdoNetCore.AseClient/wiki/Unsupported-features) wiki page (still applicable — this fork hasn't diverged on feature support yet).
 * Performance equivalent to or better than that of `Sybase.Data.AseClient` provided by SAP. This is possible as we are eliminating the COM and OLE DB layers from this driver and .NET Core is fast.
-* Target `net9.0` (see the fork notice at the top of this README for why this differs from upstream's wider target matrix).
+* Target all of upstream's frameworks (`netcoreapp1.0` through `netstandard2.0`/`net46`) plus `net9.0`.
 * Should work with [Dapper](https://github.com/StackExchange/Dapper) at least as well as the `Sybase.Data.AseClient`
 
 ## Performance benchmarks
