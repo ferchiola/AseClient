@@ -1,10 +1,51 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\..\build\common.props"></Import>
   <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <Description>.NET data provider for Sybase/SAP ASE. Fork of DataAction/AdoNetCore.AseClient — see README.md and DECISIONS.md.</Description>
+    <Authors>Fernando Chiola</Authors>
     <PackageId>Chiola.AseClient</PackageId>
+    <Version>9.0.0</Version>
+    <RepositoryUrl>https://github.com/ferchiola/AseClient</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageTags>Sybase;ASE;Adaptive;SAP;AseClient;DbProvider</PackageTags>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <DebugType>Embedded</DebugType>
+    <EmbedAllSources>true</EmbedAllSources>
   </PropertyGroup>
+
+  <!--
+    Vuelto a net9.0 único (revierte la matriz multi-target de netcoreapp1.0..net8.0/net46/netstandard2.0
+    restaurada antes) — a pedido explícito del usuario (2026-07-31): único consumidor real es
+    EntityFrameworkCore.Ase, que también es net9.0-only, y mantener/verificar 12 targets para un
+    paquete con un solo consumidor no se justificaba. Ver DECISIONS.md para la historia completa
+    (multi-target restaurado y luego revertido en el mismo día).
+
+    Flags que en el original (build/common.props, ahora eliminado) variaban según el TargetFramework.
+    Simplificado a un único target, así que se fijan acá directo, al valor "más capaz":
+      - ENABLE_ARRAY_POOL: sí. Camino de buffers con System.Buffers.ArrayPool<byte> en vez de `new byte[]`.
+      - ENABLE_DB_PROVIDERFACTORY: sí. Soporte real de DbProviderFactory (AseClientFactory,
+        AseConnection.DbProviderFactory, AseDataSourceEnumerator).
+      - ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS / ENABLE_CLONEABLE_INTERFACE / ENABLE_SYSTEMEXCEPTION: sí.
+      - ENABLE_DB_DATAPERMISSION: NO. Guarda AseClientPermission/AseClientPermissionAttribute, un stub
+        sin implementación real ("Code Access Security is no longer recommended") — requeriría agregar
+        System.Security.Permissions solo para compilar un stub sin funcionalidad real.
+  -->
   <PropertyGroup>
-    <LangVersion>7</LangVersion>
+    <DefineConstants>$(DefineConstants);ENABLE_ARRAY_POOL;ENABLE_DB_PROVIDERFACTORY;ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS;ENABLE_CLONEABLE_INTERFACE;ENABLE_SYSTEMEXCEPTION</DefineConstants>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../icon.png" Pack="true" Visible="false" PackagePath="" />
+    <None Include="../../README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
 </Project>

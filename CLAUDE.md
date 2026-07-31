@@ -16,50 +16,42 @@ libera conexiones de forma confiable, el charset confiando ciegamente en lo que 
 En vez de seguir acumulando workarounds en la capa de EF Core, este fork existe para arreglarlos
 directo en la fuente.
 
-**Plan** (a 2026-07-31, en progreso): 1) fork inicial + atribución en README (hecho), 2) analizar el
-driver y resolver los bugs/gaps encontrados (en progreso — `ClearPool`/`ClearPools` y la limpieza
-proactiva de idle ya resueltos, ver `DECISIONS.md`), 3) publicar como paquete NuGet propio
-(`Chiola.AseClient`, hecho — ver "Deploy" abajo), 4) reemplazar la dependencia `AdoNetCore.AseClient`
-de `EntityFrameworkCore.Ase` por este paquete propio (pendiente).
+**Plan** (a 2026-07-31): 1) fork inicial + atribución en README (hecho), 2) analizar el driver y
+resolver los bugs/gaps encontrados (en progreso — `ClearPool`/`ClearPools` y la limpieza proactiva de
+idle ya resueltos, ver `DECISIONS.md`), 3) publicar como paquete NuGet propio (`Chiola.AseClient`,
+hecho — ver "Deploy" abajo), 4) reemplazar la dependencia `AdoNetCore.AseClient` de
+`EntityFrameworkCore.Ase` por este paquete propio (hecho, mismo día — ver
+`EntityFrameworkCore.Ase/CLAUDE.md`).
 
 ## Stack
 
-`src/AdoNetCore.AseClient` targetea **toda la matriz del original** (`netcoreapp1.0`/`1.1`/`2.0`/`2.1`/
-`2.2`, `net46`, `netstandard2.0`) **más `net5.0` a `net9.0`** (las 5 versiones "modernas", agregadas en
-dos pasadas — primero `net9.0` solo, después el resto a pedido del usuario para no dejar un salto
-entre 2019 y 2024) — 12 targets en total. El fork había arrancado recortado a solo `net9.0`, pero se
-restauró/amplió la matriz para que el paquete le sirva a cualquiera que use el driver original en un
-proyecto más viejo o en cualquier .NET moderno, no solo al caso de uso propio. Ninguno de los targets
-nuevos reemplazó algo de la lista original, todos se agregaron encima — ver `build/common.props` para
-el detalle de qué `DefineConstants` aplica cada target (`net5.0`-`net9.0` comparten la misma
-combinación "más capaz" que se eligió para `net9.0` cuando el fork era net9.0-only). C#
-`LangVersion=7` para todos los targets salvo `net9.0` (`latest` — necesario por un bug real del parser
-del SDK de esta máquina contra Dapper, no del código, ver `DECISIONS.md`/README; no se detectó el
-mismo problema en `net5.0`/`6.0`/`7.0`/`8.0`, que se dejaron en su `LangVersion` default).
+`src/AdoNetCore.AseClient` targetea **`net9.0` únicamente**. Hubo un detour el mismo día (2026-07-31):
+se restauró/amplió a los 12 targets del original (`netcoreapp1.0`-`2.2`, `net46`, `netstandard2.0`,
+`net5.0`-`net9.0`) y después se revirtió a pedido explícito del usuario — el único consumidor real
+(`EntityFrameworkCore.Ase`) es net9.0-only, así que no se justificaba mantener/verificar 12 targets
+para un paquete con un solo consumidor. Ver `DECISIONS.md` para la historia completa. `LangVersion=latest`
+(necesario por un bug real del parser del SDK de esta máquina contra Dapper en el proyecto de tests,
+no del código de `src/` en sí — ver `DECISIONS.md`).
 
-**No hay proyecto StrongName** — existió brevemente (`AdoNetCore.AseClient.StrongName`, restaurado del
-original, publicado como `Chiola.AseClient.StrongName` 0.20.0/0.20.1) y se descartó a pedido explícito
-del usuario (2026-07-31): este fork no necesita un ensamblado con strong name, y mantener/publicar un
-segundo paquete que nadie iba a usar no valía la pena. Las dos versiones publicadas quedaron unlisted
-en nuget.org (con la API key global de `CLAUDE.md` raíz no se pudo hacer el unlist por API — 403,
-la key solo tiene permiso de push — lo hizo el usuario a mano desde la web). El `.snk`
-(`build/AdoNetCore.AseClient.snk`) se borró también, sin uso una vez removido el proyecto.
+**Versión = `9.0.0`**, no sigue el esquema `0.x` del original ni un contador propio — a pedido
+explícito del usuario, el número de versión señala directamente el target framework mínimo/único
+(`net9.0`), no un nivel de completitud de features ni el historial de releases de upstream.
 
-El proyecto de **tests** (`test/AdoNetCore.AseClient.Tests`) sigue targeteando **solo `net9.0`** — no
-se restauró su propia matriz vieja (paquetes de test tipo NUnit/Moq/Dapper en versiones modernas no
-necesariamente compilan contra `netcoreapp1.0`/`net46`, y no es necesario para verificar que el
-paquete multi-target compila: alcanza con que `src/` compile en cada target, verificado con
-`dotnet build -f <tfm>` por separado). Tests con NUnit 3.x (heredado del original, no NUnit 4 — ver
-nota de fork).
+**Sin proyecto StrongName ni `build/common.props`** — ambos existieron brevemente durante el detour de
+arriba y se descartaron: `common.props` ya no tiene sentido con un solo proyecto/target (toda su
+config vive directo en el único `.csproj` ahora), y `AdoNetCore.AseClient.StrongName`/su `.snk` no
+tienen ningún consumidor real. Ver `DECISIONS.md`.
+
+Proyecto de **tests** (`test/AdoNetCore.AseClient.Tests`): `net9.0`, NUnit 3.x (heredado del original,
+no NUnit 4 — ver nota de fork).
 
 ## Comandos útiles
 
 ```
-dotnet build                                                    # toda la solución (src multi-target + test net9.0)
-dotnet build src/AdoNetCore.AseClient/AdoNetCore.AseClient.csproj -f <tfm>   # compilar un target puntual (ver lista arriba)
-dotnet pack src/AdoNetCore.AseClient/AdoNetCore.AseClient.csproj -c Release  # nupkg multi-target, con un lib/<tfm> por cada uno
-dotnet test --filter "TestCategory!=integration&FullyQualifiedName!~Integration"   # solo unit tests (~1200, sin ASE real, net9.0)
-dotnet test --filter "FullyQualifiedName~.Integration."         # suite de integración completa, requiere ASE real (net9.0)
+dotnet build                                                    # toda la solución
+dotnet pack src/AdoNetCore.AseClient/AdoNetCore.AseClient.csproj -c Release  # nupkg
+dotnet test --filter "TestCategory!=integration&FullyQualifiedName!~Integration"   # solo unit tests (~1200, sin ASE real)
+dotnet test --filter "FullyQualifiedName~.Integration."         # suite de integración completa, requiere ASE real
 ```
 
 ### Instancia de ASE para tests de integración
@@ -92,8 +84,9 @@ para el formato).
 No aplica infraestructura web/IIS/MSSQL — es una librería (paquete NuGet), no un sitio. Publicado a
 nuget.org (`Chiola.AseClient`) a mano con `dotnet nuget push` usando la API key global de `CLAUDE.md`
 raíz — a diferencia de `EntityFrameworkCore.Ase`, todavía **no** tiene el workflow de GitHub Actions
-con Trusted Publishing (OIDC) configurado. Para publicar una versión nueva: bump de `VersionPrefix` en
-`build/common.props`, `dotnet pack src/AdoNetCore.AseClient/AdoNetCore.AseClient.csproj -c Release`,
+con Trusted Publishing (OIDC) configurado. Para publicar una versión nueva: bump de `<Version>` en
+`src/AdoNetCore.AseClient/AdoNetCore.AseClient.csproj`,
+`dotnet pack src/AdoNetCore.AseClient/AdoNetCore.AseClient.csproj -c Release`,
 `dotnet nuget push ... --api-key <key> --source https://api.nuget.org/v3/index.json`.
 
 ## Notas
@@ -110,7 +103,8 @@ con Trusted Publishing (OIDC) configurado. Para publicar una versión nueva: bum
   → Developer settings → Personal access tokens. Ese mismo token **no** tiene permiso para crear repos
   nuevos vía API (`POST /user/repos` → 403) ni para hacer unlist/delete de paquetes en nuget.org vía la
   API key global (403 también) — ambas cosas las tiene que hacer el usuario a mano.
-- Ícono del paquete (`icon.png`, referenciado desde `build/common.props`): reemplazado 2026-07-31 — el
-  original seguía siendo literalmente el logo de DataAction (nunca se había tocado al hacer el fork).
-  Ahora es un ícono propio simple (cilindro de base de datos, generado por Claude vía GDI+/PowerShell,
-  sin relación con ninguna marca).
+- Ícono del paquete (`icon.png`, referenciado desde el `.csproj` de `src/AdoNetCore.AseClient`):
+  reemplazado 2026-07-31 — el original seguía siendo literalmente el logo de DataAction (nunca se
+  había tocado al hacer el fork). Ahora es un ícono propio simple (cilindro de base de datos, generado
+  por Claude vía GDI+/PowerShell, sin relación con ninguna marca) — el mismo se reusó también para
+  `Chiola.EntityFrameworkCore.Ase`, que no tenía ninguno.

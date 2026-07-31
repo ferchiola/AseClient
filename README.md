@@ -12,28 +12,27 @@
 > at the source instead of accumulating workarounds downstream.
 >
 > **What changed from upstream** (see `DECISIONS.md` for the full history and reasoning behind each of
-> these):
-> - **Targets `net5.0`–`net9.0` in addition to upstream's full legacy matrix** (`netcoreapp1.0` through
->   `netstandard2.0`/`net46`). The fork briefly dropped everything but `net9.0` (its only consumer at
->   the time), then restored the original matrix so this package can benefit anyone still on an older
->   target, not just this fork's own use case — `net5.0`–`net9.0` were added on top, not swapped in,
->   closing the gap between upstream's newest target (2019) and modern .NET.
-> - Dropped the `AdoNetCore.AseClient.Benchmark` project (outdated `BenchmarkDotNet` 0.10.14, not
->   relevant to this fork's goal). `AdoNetCore.AseClient.StrongName` was briefly restored too, then
->   dropped for good — this fork doesn't need a strong-named variant, and publishing two packages just
->   to leave one permanently unused wasn't worth the upkeep.
+> these — including a detour where the fork briefly targeted upstream's entire legacy matrix plus
+> `net5.0`–`net9.0`, and a `StrongName` package, before both were reverted to keep this fork minimal
+> for its one real consumer):
+> - **Targets `net9.0` only** (upstream targets `netcoreapp1.0` through `netstandard2.0`/`net46`).
+>   This fork exists to serve `Chiola.EntityFrameworkCore.Ase`, which is itself `net9.0`-only — no
+>   other consumer to support, so no reason to carry upstream's wider compatibility matrix.
+> - Dropped the `AdoNetCore.AseClient.Benchmark` and `AdoNetCore.AseClient.StrongName` projects —
+>   neither relevant to this fork's single consumer.
 > - Test project pinned to NUnit 3.x (upstream's actual test suite, ~1200 unit tests + a real
 >   integration suite against live ASE) rather than upgrading to NUnit 4 outright, to avoid churn from
->   its `CollectionAssert`/`StringAssert` namespace move — revisit later if worth it. The test project
->   itself only runs against `net9.0` today (not the full matrix like `src/`) — see `CLAUDE.md`.
+>   its `CollectionAssert`/`StringAssert` namespace move — revisit later if worth it.
 > - **Real bug fixes** (see `DECISIONS.md` for each): `AseConnection.ClearPool()`/`ClearPools()` were
 >   literal no-ops upstream (`//todo: implement`) — implemented for real via a pool-generation pattern.
 >   Added proactive idle-connection eviction to the pool (previously only checked lazily, when a
 >   connection was next reserved — a pool that went idle just stayed open on the server forever).
+> - **Versioning diverges from upstream's `0.x` scheme on purpose**: this package is versioned `9.0.0`
+>   to signal its minimum/only target framework (`net9.0`) at a glance, not to track upstream's release
+>   history or imply any particular feature-completeness level.
 >
 > Package published as **`Chiola.AseClient`** on NuGet (not `AdoNetCore.AseClient`, to avoid clashing
-> with the upstream package). `Chiola.AseClient.StrongName` was published briefly (`0.20.0`/`0.20.1`)
-> and then unlisted — see above.
+> with the upstream package).
 
 A .NET data provider for SAP ASE — fork of DataAction/AdoNetCore.AseClient.
 
@@ -84,7 +83,7 @@ The latest stable release of the AdoNetCore.AseClient is [available on NuGet](ht
 
 * Not all features are currently supported, and some features will not be supported. Refer to upstream's [Unsupported features](https://github.com/DataAction/AdoNetCore.AseClient/wiki/Unsupported-features) wiki page (still applicable — this fork hasn't diverged on feature support yet).
 * Performance equivalent to or better than that of `Sybase.Data.AseClient` provided by SAP. This is possible as we are eliminating the COM and OLE DB layers from this driver and .NET Core is fast.
-* Target all of upstream's frameworks (`netcoreapp1.0` through `netstandard2.0`/`net46`) plus `net5.0`–`net9.0`.
+* Target `net9.0` (see the fork notice at the top of this README for why this differs from upstream's wider target matrix).
 * Should work with [Dapper](https://github.com/StackExchange/Dapper) at least as well as the `Sybase.Data.AseClient`
 
 ## Performance benchmarks

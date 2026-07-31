@@ -283,3 +283,40 @@ NuGet solo para que quede sin usar no se justificaba.
   descubrible/instalable como nuevo, pero sigue existiendo para quien ya lo referencia).
 - Verificado que `dotnet build` de la solución completa sigue compilando limpio (0 errores) después de
   sacar el proyecto.
+
+## Revertido a `net9.0` únicamente, versión `9.0.0` (2026-07-31)
+
+Cierre del detour de multi-targeting del mismo día: a pedido explícito del usuario, se volvió a
+recortar `src/AdoNetCore.AseClient` a **`net9.0` solo** (revierte las dos secciones anteriores sobre
+restaurar/ampliar la matriz de targets) y se le puso versión **`9.0.0`** — a propósito, para que el
+número de versión indique directamente el target framework mínimo/único en vez de seguir el esquema
+`0.x` del original o un contador propio de features. Mismo pedido incluyó cambiar la dependencia de
+`EntityFrameworkCore.Ase` de `AdoNetCore.AseClient` (upstream) a `Chiola.AseClient` (este fork) — ver
+`EntityFrameworkCore.Ase/DECISIONS.md` para esa mitad del cambio.
+
+### Qué se sacó
+
+- `build/common.props` eliminado por completo (y la carpeta `build/`, que quedó vacía). Con un solo
+  proyecto y un solo target ya no aportaba nada — toda su configuración se volcó directo al único
+  `.csproj` de `src/AdoNetCore.AseClient`, incluidos los `DefineConstants` (la misma combinación "más
+  capaz" que ya se usaba para `net9.0`: `ENABLE_ARRAY_POOL`, `ENABLE_DB_PROVIDERFACTORY`,
+  `ENABLE_SYSTEM_DATA_COMMON_EXTENSIONS`, `ENABLE_CLONEABLE_INTERFACE`, `ENABLE_SYSTEMEXCEPTION` — sin
+  `ENABLE_DB_DATAPERMISSION`, mismo criterio de siempre).
+- `TargetFramework` (singular) en vez de `TargetFrameworks` (plural) — ya no hace falta la
+  infraestructura de multi-targeting de MSBuild para un solo target.
+- `AssemblyVersion`/`FileVersion`/`VersionPrefix` (separados, heredados del original) reemplazados por
+  un único `<Version>9.0.0</Version>` — se dejó que el SDK derive automáticamente `AssemblyVersion`/
+  `FileVersion` a partir de `Version`, en vez de mantenerlos por separado como hacía el original
+  (que tenía `AssemblyVersion` pisado en `0.11.0.0`, un artefacto viejo sin relación con el
+  `VersionPrefix` real).
+
+### Verificación
+
+- `dotnet build`: solución completa compila limpio, 0 errores.
+- Suite completa de tests (sin cambios de alcance): 1208 unitarios + 8 de
+  `AseConnectionPoolManagerTests` contra ASE real, ambos en verde — sin regresión.
+- `dotnet pack -c Release`: genera `Chiola.AseClient.9.0.0.nupkg` con un solo `lib/net9.0/`,
+  confirmado inspeccionando el contenido del archivo.
+- Publicado en nuget.org (`dotnet nuget push`, API key global). Las versiones `0.20.0`/`0.20.1`
+  quedan publicadas tal cual (no se unlistearon) — el salto de `0.20.1` a `9.0.0` es intencional, no
+  un error de versión.
