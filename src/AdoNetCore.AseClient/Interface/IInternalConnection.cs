@@ -108,6 +108,14 @@ namespace AdoNetCore.AseClient.Interface
         bool IsDoomed { get; set; }
 
         /// <summary>
+        /// The pool generation this connection belongs to. Stamped by <see cref="Internal.ConnectionPool"/>
+        /// when the connection is created; used to detect connections that predate a
+        /// <see cref="Internal.ConnectionPool.Clear"/> call, so they get closed instead of returned to the
+        /// pool the next time they are released, even though nothing is wrong with the connection itself.
+        /// </summary>
+        int Generation { get; set; }
+
+        /// <summary>
         /// Indicates if this connection has already been disposed
         /// </summary>
         bool IsDisposed { get; }

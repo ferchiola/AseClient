@@ -599,6 +599,8 @@ namespace AdoNetCore.AseClient.Internal
 
         public bool IsDisposed { get; private set; }
 
+        public int Generation { get; set; }
+
         private IEnumerable<IToken> BuildCommandTokens(AseCommand command, CommandBehavior behavior)
         {
             if (command.CommandType == CommandType.TableDirect)

@@ -147,6 +147,68 @@ namespace AdoNetCore.AseClient.Tests.Unit
             Assert.AreEqual(1, pool.Available);
         }
 
+        [Test]
+        public void Clear_ClosesIdleConnections()
+        {
+            var parameters = new TestConnectionParameters
+            {
+                MinPoolSize = 5
+            };
+            var pool = new ConnectionPool(parameters, new ImmediateConnectionFactory());
+
+            Task.Delay(1000).Wait();
+            Assert.AreEqual(5, pool.PoolSize);
+            Assert.AreEqual(5, pool.Available);
+
+            pool.Clear();
+
+            Assert.AreEqual(0, pool.PoolSize);
+            Assert.AreEqual(0, pool.Available);
+        }
+
+        [Test]
+        public void Clear_ConnectionCheckedOutBeforeClear_IsClosedInsteadOfPooled_WhenReleased()
+        {
+            var parameters = new TestConnectionParameters
+            {
+                MaxPoolSize = 5
+            };
+            var pool = new ConnectionPool(parameters, new ImmediateConnectionFactory());
+
+            var connection = (DoNothingInternalConnection)pool.Reserve(null);
+            Assert.AreEqual(1, pool.PoolSize);
+            Assert.AreEqual(0, pool.Available);
+
+            //Clear() can't reach a connection that's currently checked out - simulates a DBA/app calling
+            //ClearPool()/ClearPools() while a connection from that pool is mid-use elsewhere.
+            pool.Clear();
+            Assert.IsFalse(connection.WasDisposed, "checked-out connection shouldn't be touched by Clear() itself");
+
+            pool.Release(connection);
+
+            Assert.IsTrue(connection.WasDisposed, "connection predates Clear() and should be closed, not pooled, once released");
+            Assert.AreEqual(0, pool.PoolSize);
+            Assert.AreEqual(0, pool.Available);
+        }
+
+        [Test]
+        public void Clear_ConnectionsCreatedAfterClear_AreNotAffectedAndPoolNormally()
+        {
+            var parameters = new TestConnectionParameters
+            {
+                MaxPoolSize = 5
+            };
+            var pool = new ConnectionPool(parameters, new ImmediateConnectionFactory());
+
+            pool.Clear();
+
+            var connection = pool.Reserve(null);
+            pool.Release(connection);
+
+            Assert.AreEqual(1, pool.PoolSize);
+            Assert.AreEqual(1, pool.Available);
+        }
+
         /// <summary>
         /// In this scenario, the pool is fully consumed, and then an additional pool's worth of Reserve() calls are applied
         /// This is then repeated for so many runs
@@ -289,7 +351,8 @@ namespace AdoNetCore.AseClient.Tests.Unit
             {
                 _changeDatabaseThrows = changeDatabaseThrows;
             }
-            public void Dispose() { }
+            public bool WasDisposed { get; private set; }
+            public void Dispose() { WasDisposed = true; }
             public DateTime Created { get; }
             public DateTime LastActive { get; }
 
@@ -338,6 +401,7 @@ namespace AdoNetCore.AseClient.Tests.Unit
 
             public bool IsDoomed { get; set; }
             public bool IsDisposed { get; }
+            public int Generation { get; set; }
             public bool IsCaseSensitive()
             {
                 return false;

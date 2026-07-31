@@ -19,6 +19,15 @@ namespace AdoNetCore.AseClient.Internal
         /// </summary>
         public int PoolSize { get; private set; }
 
+        /// <summary>
+        /// Bumped by <see cref="Clear"/>. Connections stamp their own <see cref="IInternalConnection.Generation"/>
+        /// when created (see <see cref="CreateNewPooledConnection"/>); a connection whose generation no longer
+        /// matches this value predates the last <see cref="Clear"/> call and gets closed instead of pooled the
+        /// next time it's released (see <see cref="Release"/>) — even though nothing is actually wrong with it.
+        /// Always read/written under <see cref="_mutex"/>, same as <see cref="PoolSize"/>.
+        /// </summary>
+        private int _generation;
+
         //regular members
         private readonly IConnectionParameters _parameters;
         private readonly IInternalConnectionFactory _connectionFactory;
@@ -172,7 +181,14 @@ namespace AdoNetCore.AseClient.Internal
             try
             {
                 Logger.Instance?.WriteLine($"{nameof(CreateNewPooledConnection)} start");
-                return await _connectionFactory.GetNewConnection(cancellationToken, eventNotifier);
+                var connection = await _connectionFactory.GetNewConnection(cancellationToken, eventNotifier);
+
+                lock (_mutex)
+                {
+                    connection.Generation = _generation;
+                }
+
+                return connection;
             }
             catch
             {
@@ -286,20 +302,26 @@ namespace AdoNetCore.AseClient.Internal
                 connection?.Dispose();
                 return;
             }
-            
+
             if (connection == null)
             {
                 return;
             }
 
             var now = DateTime.UtcNow;
-            if (ShouldRemoveAndReplace(connection, now))
+            bool staleGeneration;
+            lock (_mutex)
+            {
+                staleGeneration = connection.Generation != _generation;
+            }
+
+            if (ShouldRemoveAndReplace(connection, now) || staleGeneration)
             {
                 RemoveAndReplace(connection);
                 Logger.Instance?.WriteLine("Released connection was removed. Creation of a replacement was tasked.");
                 return;
             }
-            
+
             AddToPool(connection);
         }
 
@@ -307,6 +329,26 @@ namespace AdoNetCore.AseClient.Internal
         {
             _available.Add(connection);
             Logger.Instance?.WriteLine("Released connection was placed in available queue");
+        }
+
+        /// <summary>
+        /// See <see cref="IConnectionPool.Clear"/>.
+        /// </summary>
+        public void Clear()
+        {
+            lock (_mutex)
+            {
+                _generation++;
+            }
+
+            Logger.Instance?.WriteLine($"{nameof(Clear)} closing idle connections and bumping generation");
+
+            // Connections currently checked out aren't reachable from here — they get closed instead of
+            // pooled the next time Release() is called on them, via the generation check above.
+            while (_available.TryTake(out var connection))
+            {
+                RemoveConnection(connection);
+            }
         }
     }
 }

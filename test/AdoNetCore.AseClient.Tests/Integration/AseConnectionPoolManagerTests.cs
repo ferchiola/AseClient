@@ -97,5 +97,73 @@ namespace AdoNetCore.AseClient.Tests.Integration
 
             Assert.AreEqual(1, AseConnectionPoolManager.GetConnectionPool(unpooledConnectionString).Available);
         }
+
+        [Test]
+        public void ClearPool_ClosesIdlePooledConnection()
+        {
+            var connectionString = ConnectionStrings.PooledUnique;
+
+            using (var connection = new AseConnection(connectionString))
+            {
+                connection.Open();
+                connection.Close();
+            }
+
+            Assert.AreEqual(1, AseConnectionPoolManager.GetConnectionPool(connectionString).Available);
+
+            using (var connection = new AseConnection(connectionString))
+            {
+                connection.ClearPool();
+            }
+
+            Assert.AreEqual(0, AseConnectionPoolManager.GetConnectionPool(connectionString).Available);
+        }
+
+        [Test]
+        public void ClearPools_ClosesIdlePooledConnectionsAcrossAllPools()
+        {
+            var connectionStringA = ConnectionStrings.PooledUnique;
+            var connectionStringB = ConnectionStrings.PooledUnique;
+
+            using (var connection = new AseConnection(connectionStringA))
+            {
+                connection.Open();
+                connection.Close();
+            }
+
+            using (var connection = new AseConnection(connectionStringB))
+            {
+                connection.Open();
+                connection.Close();
+            }
+
+            Assert.AreEqual(1, AseConnectionPoolManager.GetConnectionPool(connectionStringA).Available);
+            Assert.AreEqual(1, AseConnectionPoolManager.GetConnectionPool(connectionStringB).Available);
+
+            AseConnection.ClearPools();
+
+            Assert.AreEqual(0, AseConnectionPoolManager.GetConnectionPool(connectionStringA).Available);
+            Assert.AreEqual(0, AseConnectionPoolManager.GetConnectionPool(connectionStringB).Available);
+        }
+
+        [Test]
+        public void ClearPool_ConnectionInUseWhenCleared_IsClosedInsteadOfPooled_OnceReleased()
+        {
+            var connectionString = ConnectionStrings.PooledUnique;
+
+            using (var inUse = new AseConnection(connectionString))
+            {
+                inUse.Open();
+
+                using (var other = new AseConnection(connectionString))
+                {
+                    other.ClearPool();
+                }
+
+                //inUse predates the ClearPool() call above - closing it now shouldn't add it back to the pool.
+            }
+
+            Assert.AreEqual(0, AseConnectionPoolManager.GetConnectionPool(connectionString).Available);
+        }
     }
 }

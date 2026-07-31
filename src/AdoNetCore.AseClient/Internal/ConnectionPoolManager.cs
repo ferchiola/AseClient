@@ -45,12 +45,18 @@ namespace AdoNetCore.AseClient.Internal
 
         public void ClearPool(string connectionString)
         {
-            //todo: implement
+            if (Pools.TryGetValue(connectionString, out var pool))
+            {
+                pool.Clear();
+            }
         }
 
         public void ClearPools()
         {
-            //todo: implement
+            foreach (var pool in Pools.Values)
+            {
+                pool.Clear();
+            }
         }
 
         /// <summary>
