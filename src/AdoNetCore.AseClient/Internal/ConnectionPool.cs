@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Sockets;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -37,6 +39,12 @@ namespace AdoNetCore.AseClient.Internal
         /// </summary>
         public int Available => _available.Count;
 
+        // Timer for the idle/lifetime sweep started below - kept alive for the lifetime of the pool (which
+        // itself lives forever in ConnectionPoolManager's static dictionary, same as every other pool
+        // resource here; there's no pool teardown path to hook a Dispose into).
+        private readonly Timer _idleSweepTimer;
+        private readonly int _idleSweepIntervalMs;
+
         public ConnectionPool(IConnectionParameters parameters, IInternalConnectionFactory connectionFactory)
         {
             _parameters = parameters;
@@ -49,6 +57,82 @@ namespace AdoNetCore.AseClient.Internal
             {
                 Task.Run(TryFillPoolToMinSize);
                 Logger.Instance?.WriteLine("Pool fill task started");
+            }
+
+            if (_parameters.Pooling && (_parameters.ConnectionIdleTimeout > 0 || _parameters.ConnectionLifetime > 0))
+            {
+                // Tie the sweep frequency to whichever configured timeout is smaller, so a short
+                // ConnectionIdleTimeout is actually enforced promptly rather than just eventually - with a
+                // floor so a very small timeout (e.g. 1s, common in tests) doesn't spin the sweep too tight.
+                var relevantTimeouts = new List<int>(2);
+                if (_parameters.ConnectionIdleTimeout > 0)
+                {
+                    relevantTimeouts.Add(_parameters.ConnectionIdleTimeout);
+                }
+                if (_parameters.ConnectionLifetime > 0)
+                {
+                    relevantTimeouts.Add(_parameters.ConnectionLifetime);
+                }
+
+                var intervalSeconds = Math.Max(2, relevantTimeouts.Min() / 2);
+                _idleSweepIntervalMs = intervalSeconds * 1000;
+                _idleSweepTimer = new Timer(SweepIdleConnections, null, _idleSweepIntervalMs, Timeout.Infinite);
+                Logger.Instance?.WriteLine($"Idle connection sweep started, interval {intervalSeconds}s");
+            }
+        }
+
+        /// <summary>
+        /// Proactively evicts idle pooled connections that have exceeded <see cref="IConnectionParameters.ConnectionIdleTimeout"/>
+        /// or <see cref="IConnectionParameters.ConnectionLifetime"/>, instead of leaving that check to only
+        /// happen lazily whenever a connection is next reserved (which never happens at all if the pool goes
+        /// idle - see DECISIONS.md, "no hay limpieza proactiva de conexiones idle en el pool").
+        /// </summary>
+        private void SweepIdleConnections(object state)
+        {
+            try
+            {
+                Logger.Instance?.WriteLine($"{nameof(SweepIdleConnections)} start");
+
+                var now = DateTime.UtcNow;
+                var toKeep = new List<IInternalConnection>();
+                var removedCount = 0;
+
+                // Drain everything currently idle, individually via non-blocking TryTake - the brief window
+                // where this makes the pool look emptier than it is to a concurrent Reserve() is benign (at
+                // worst, one extra connection gets created instead of reusing one that's about to be put
+                // back below) and self-corrects immediately.
+                while (_available.TryTake(out var connection))
+                {
+                    if (ShouldRemoveAndReplace(connection, now))
+                    {
+                        RemoveAndReplace(connection);
+                        removedCount++;
+                    }
+                    else
+                    {
+                        toKeep.Add(connection);
+                    }
+                }
+
+                foreach (var connection in toKeep)
+                {
+                    AddToPool(connection);
+                }
+
+                if (removedCount > 0)
+                {
+                    Logger.Instance?.WriteLine($"{nameof(SweepIdleConnections)} closed {removedCount} idle connection(s)");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance?.WriteLine($"{nameof(SweepIdleConnections)} exception: {ex}");
+            }
+            finally
+            {
+                // Single-shot Timer, rescheduled here rather than a repeating Timer - avoids overlapping
+                // sweeps if one run ever takes longer than the interval (e.g. a huge pool).
+                _idleSweepTimer?.Change(_idleSweepIntervalMs, Timeout.Infinite);
             }
         }
 

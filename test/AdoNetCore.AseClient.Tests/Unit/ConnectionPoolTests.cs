@@ -192,6 +192,29 @@ namespace AdoNetCore.AseClient.Tests.Unit
         }
 
         [Test]
+        public void IdleSweep_ProactivelyClosesConnectionsPastIdleTimeout_WithoutAnyReserveCall()
+        {
+            var parameters = new TestConnectionParameters
+            {
+                MaxPoolSize = 5,
+                ConnectionIdleTimeout = 1 //seconds - smallest realistic value, gives a ~2s sweep interval
+            };
+            var pool = new ConnectionPool(parameters, new ImmediateConnectionFactory());
+
+            var connection = pool.Reserve(null);
+            pool.Release(connection);
+            Assert.AreEqual(1, pool.PoolSize);
+            Assert.AreEqual(1, pool.Available);
+
+            //Nobody calls Reserve() again here - if eviction only happened lazily (the old behaviour),
+            //this connection would just sit in the pool forever.
+            Task.Delay(TimeSpan.FromSeconds(5)).Wait();
+
+            Assert.AreEqual(0, pool.PoolSize);
+            Assert.AreEqual(0, pool.Available);
+        }
+
+        [Test]
         public void Clear_ConnectionsCreatedAfterClear_AreNotAffectedAndPoolNormally()
         {
             var parameters = new TestConnectionParameters
@@ -353,8 +376,8 @@ namespace AdoNetCore.AseClient.Tests.Unit
             }
             public bool WasDisposed { get; private set; }
             public void Dispose() { WasDisposed = true; }
-            public DateTime Created { get; }
-            public DateTime LastActive { get; }
+            public DateTime Created { get; } = DateTime.UtcNow;
+            public DateTime LastActive { get; } = DateTime.UtcNow;
 
             public bool Ping()
             {
@@ -441,8 +464,8 @@ namespace AdoNetCore.AseClient.Tests.Unit
             public short MaxPoolSize { get; set; } = 100;
             public short MinPoolSize { get; set; }
             public int LoginTimeout { get; set; }
-            public short ConnectionIdleTimeout { get; }
-            public short ConnectionLifetime { get; }
+            public short ConnectionIdleTimeout { get; set; }
+            public short ConnectionLifetime { get; set; }
             public bool PingServer { get; }
             public ushort PacketSize { get; }
             public int TextSize { get; }
