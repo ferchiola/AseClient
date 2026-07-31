@@ -247,3 +247,39 @@ Al intentar correr `dotnet test --filter "FullyQualifiedName~.Integration."` com
 fix, como baseline), VSTest abortó la corrida con "Proceso de host de pruebas bloqueado" después de
 647 tests pasados (0 fallos) — algún test más adelante en el orden de ejecución cuelga el proceso en
 vez de fallar limpio. No identificado todavía cuál ni por qué — candidato para la fase de análisis.
+
+## Publicación en NuGet, GitHub, e ícono propio (2026-07-31)
+
+Publicado `Chiola.AseClient` 0.20.0 en nuget.org (a mano, `dotnet nuget push` con la API key global de
+`CLAUDE.md` raíz — sin workflow de Trusted Publishing todavía, a diferencia de `EntityFrameworkCore.Ase`).
+Repo creado en `github.com/ferchiola/AseClient` y pusheado (historia completa desde el clone del
+original preservada). El token de GitHub cacheado en esta máquina resultó ser un fine-grained PAT sin
+permiso para crear repos nuevos vía API (`403`) ni para pushear a un repo recién creado hasta que el
+usuario lo agregó a mano a la lista de repos permitidos del token — ambos pasos los hizo el usuario.
+
+**Ícono del paquete reemplazado**: `icon.png` seguía siendo literalmente el logo de DataAction (círculo
+navy con líneas de colores) — nunca se había tocado al hacer el fork inicial, y no correspondía seguir
+usando la marca de otro proyecto para este. Reemplazado por un ícono propio simple (cilindro de base de
+datos, navy/ámbar) generado con `System.Drawing`/GDI+ vía PowerShell — sin dependencias externas de
+diseño. Requirió bump de versión (`0.20.0` → `0.20.1`, NuGet no permite republicar la misma versión) y
+republicar.
+
+### `Chiola.AseClient.StrongName` publicado y descartado en el mismo día
+
+Al restaurar la matriz de targets (sección anterior) también se había restaurado
+`AdoNetCore.AseClient.StrongName` (proyecto + `.snk` del original) y publicado como
+`Chiola.AseClient.StrongName` (0.20.0 y luego 0.20.1, junto con el cambio de ícono). A pedido explícito
+del usuario, se descartó: este fork no tiene ningún consumidor que necesite un ensamblado con strong
+name (ni `EntityFrameworkCore.Ase` ni nada más a la vista), y mantener/publicar un segundo paquete
+NuGet solo para que quede sin usar no se justificaba.
+
+- Proyecto `src/AdoNetCore.AseClient.StrongName` eliminado del repo y de la solución (`dotnet sln
+  remove`). `build/AdoNetCore.AseClient.snk` borrado también (sin ningún otro uso una vez sacado el
+  proyecto).
+- Las dos versiones ya publicadas en nuget.org (`0.20.0`, `0.20.1`) **no se pudieron unlist por API** —
+  la API key global de `CLAUDE.md` raíz solo tiene permiso de push, no de unlist/delete (`403 Forbidden`
+  al intentar `dotnet nuget delete`). El usuario lo hizo a mano desde la web de nuget.org (Manage
+  Package). No se puede hacer un delete real en nuget.org, solo unlist (el paquete deja de ser
+  descubrible/instalable como nuevo, pero sigue existiendo para quien ya lo referencia).
+- Verificado que `dotnet build` de la solución completa sigue compilando limpio (0 errores) después de
+  sacar el proyecto.

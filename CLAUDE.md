@@ -19,24 +19,31 @@ directo en la fuente.
 **Plan** (a 2026-07-31, en progreso): 1) fork inicial + atribución en README (hecho), 2) analizar el
 driver y resolver los bugs/gaps encontrados (en progreso — `ClearPool`/`ClearPools` y la limpieza
 proactiva de idle ya resueltos, ver `DECISIONS.md`), 3) publicar como paquete NuGet propio
-(`Chiola.AseClient`/`Chiola.AseClient.StrongName`), 4) reemplazar la dependencia `AdoNetCore.AseClient`
-de `EntityFrameworkCore.Ase` por este paquete propio.
+(`Chiola.AseClient`, hecho — ver "Deploy" abajo), 4) reemplazar la dependencia `AdoNetCore.AseClient`
+de `EntityFrameworkCore.Ase` por este paquete propio (pendiente).
 
 ## Stack
 
-`src/AdoNetCore.AseClient` y `src/AdoNetCore.AseClient.StrongName` targetean **toda la matriz del
-original** (`netcoreapp1.0`/`1.1`/`2.0`/`2.1`/`2.2`, `net46`, `netstandard2.0`) **más `net5.0` a
-`net9.0`** (las 5 versiones "modernas", agregadas en dos pasadas — primero `net9.0` solo, después el
-resto a pedido del usuario para no dejar un salto entre 2019 y 2024) — 12 targets en total. El fork
-había arrancado recortado a solo `net9.0`, pero se restauró/amplió la matriz para que el paquete le
-sirva a cualquiera que use el driver original en un proyecto más viejo o en cualquier .NET moderno, no
-solo al caso de uso propio. Ninguno de los targets nuevos reemplazó algo de la lista original, todos
-se agregaron encima — ver `build/common.props` para el detalle de qué `DefineConstants` aplica cada
-target (`net5.0`-`net9.0` comparten la misma combinación "más capaz" que se eligió para `net9.0`
-cuando el fork era net9.0-only). C# `LangVersion=7` para todos los targets salvo `net9.0` (`latest` —
-necesario por un bug real del parser del SDK de esta máquina contra Dapper, no del código, ver
-`DECISIONS.md`/README; no se detectó el mismo problema en `net5.0`/`6.0`/`7.0`/`8.0`, que se dejaron
-en su `LangVersion` default).
+`src/AdoNetCore.AseClient` targetea **toda la matriz del original** (`netcoreapp1.0`/`1.1`/`2.0`/`2.1`/
+`2.2`, `net46`, `netstandard2.0`) **más `net5.0` a `net9.0`** (las 5 versiones "modernas", agregadas en
+dos pasadas — primero `net9.0` solo, después el resto a pedido del usuario para no dejar un salto
+entre 2019 y 2024) — 12 targets en total. El fork había arrancado recortado a solo `net9.0`, pero se
+restauró/amplió la matriz para que el paquete le sirva a cualquiera que use el driver original en un
+proyecto más viejo o en cualquier .NET moderno, no solo al caso de uso propio. Ninguno de los targets
+nuevos reemplazó algo de la lista original, todos se agregaron encima — ver `build/common.props` para
+el detalle de qué `DefineConstants` aplica cada target (`net5.0`-`net9.0` comparten la misma
+combinación "más capaz" que se eligió para `net9.0` cuando el fork era net9.0-only). C#
+`LangVersion=7` para todos los targets salvo `net9.0` (`latest` — necesario por un bug real del parser
+del SDK de esta máquina contra Dapper, no del código, ver `DECISIONS.md`/README; no se detectó el
+mismo problema en `net5.0`/`6.0`/`7.0`/`8.0`, que se dejaron en su `LangVersion` default).
+
+**No hay proyecto StrongName** — existió brevemente (`AdoNetCore.AseClient.StrongName`, restaurado del
+original, publicado como `Chiola.AseClient.StrongName` 0.20.0/0.20.1) y se descartó a pedido explícito
+del usuario (2026-07-31): este fork no necesita un ensamblado con strong name, y mantener/publicar un
+segundo paquete que nadie iba a usar no valía la pena. Las dos versiones publicadas quedaron unlisted
+en nuget.org (con la API key global de `CLAUDE.md` raíz no se pudo hacer el unlist por API — 403,
+la key solo tiene permiso de push — lo hizo el usuario a mano desde la web). El `.snk`
+(`build/AdoNetCore.AseClient.snk`) se borró también, sin uso una vez removido el proyecto.
 
 El proyecto de **tests** (`test/AdoNetCore.AseClient.Tests`) sigue targeteando **solo `net9.0`** — no
 se restauró su propia matriz vieja (paquetes de test tipo NUnit/Moq/Dapper en versiones modernas no
@@ -82,14 +89,28 @@ para el formato).
 
 ## Deploy
 
-No aplica infraestructura web/IIS/MSSQL — es una librería (paquete NuGet), no un sitio. El "deploy" es
-publicar a nuget.org, igual que `EntityFrameworkCore.Ase` (ver ese proyecto para el workflow de GitHub
-Actions con Trusted Publishing — todavía no configurado acá, es el paso 3 del plan de arriba).
+No aplica infraestructura web/IIS/MSSQL — es una librería (paquete NuGet), no un sitio. Publicado a
+nuget.org (`Chiola.AseClient`) a mano con `dotnet nuget push` usando la API key global de `CLAUDE.md`
+raíz — a diferencia de `EntityFrameworkCore.Ase`, todavía **no** tiene el workflow de GitHub Actions
+con Trusted Publishing (OIDC) configurado. Para publicar una versión nueva: bump de `VersionPrefix` en
+`build/common.props`, `dotnet pack src/AdoNetCore.AseClient/AdoNetCore.AseClient.csproj -c Release`,
+`dotnet nuget push ... --api-key <key> --source https://api.nuget.org/v3/index.json`.
 
 ## Notas
 
-- Repo remoto: todavía no existe en GitHub. `git remote` local tiene `upstream` (fetch-only, apunta a
-  `DataAction/AdoNetCore.AseClient`) pero ningún `origin` — falta crear `ferchiola/AseClient` (o el
-  nombre que se decida) en GitHub y agregarlo como `origin` antes de poder pushear.
+- Repo remoto: `https://github.com/ferchiola/AseClient` (creado y pusheado 2026-07-31). `git remote`
+  local tiene `origin` (push habilitado) y `upstream` (fetch-only, apunta a
+  `DataAction/AdoNetCore.AseClient`, push deshabilitado a propósito).
 - Historia de git preservada desde el clone del original (no se aplanó) — los commits nuevos de este
   fork quedan encima de esa historia.
+- El token de GitHub que usa `git push` acá es un fine-grained PAT cacheado por el credential manager
+  de Windows (mismo que usa `EntityFrameworkCore.Ase`) — **scopeado a repos específicos**, no a
+  "todos". Si aparece un 403 al pushear un repo nuevo (o "Repository not found" si el repo ni existe
+  todavía), hay que crear el repo a mano y agregarlo a la lista de repos del token en GitHub → Settings
+  → Developer settings → Personal access tokens. Ese mismo token **no** tiene permiso para crear repos
+  nuevos vía API (`POST /user/repos` → 403) ni para hacer unlist/delete de paquetes en nuget.org vía la
+  API key global (403 también) — ambas cosas las tiene que hacer el usuario a mano.
+- Ícono del paquete (`icon.png`, referenciado desde `build/common.props`): reemplazado 2026-07-31 — el
+  original seguía siendo literalmente el logo de DataAction (nunca se había tocado al hacer el fork).
+  Ahora es un ícono propio simple (cilindro de base de datos, generado por Claude vía GDI+/PowerShell,
+  sin relación con ninguna marca).

@@ -19,8 +19,9 @@
 >   target, not just this fork's own use case — `net5.0`–`net9.0` were added on top, not swapped in,
 >   closing the gap between upstream's newest target (2019) and modern .NET.
 > - Dropped the `AdoNetCore.AseClient.Benchmark` project (outdated `BenchmarkDotNet` 0.10.14, not
->   relevant to this fork's goal) — `AdoNetCore.AseClient.StrongName` was kept (restored alongside the
->   target matrix).
+>   relevant to this fork's goal). `AdoNetCore.AseClient.StrongName` was briefly restored too, then
+>   dropped for good — this fork doesn't need a strong-named variant, and publishing two packages just
+>   to leave one permanently unused wasn't worth the upkeep.
 > - Test project pinned to NUnit 3.x (upstream's actual test suite, ~1200 unit tests + a real
 >   integration suite against live ASE) rather than upgrading to NUnit 4 outright, to avoid churn from
 >   its `CollectionAssert`/`StringAssert` namespace move — revisit later if worth it. The test project
@@ -30,8 +31,9 @@
 >   Added proactive idle-connection eviction to the pool (previously only checked lazily, when a
 >   connection was next reserved — a pool that went idle just stayed open on the server forever).
 >
-> Package published as **`Chiola.AseClient`** / **`Chiola.AseClient.StrongName`** on NuGet (not
-> `AdoNetCore.AseClient`, to avoid clashing with the upstream package).
+> Package published as **`Chiola.AseClient`** on NuGet (not `AdoNetCore.AseClient`, to avoid clashing
+> with the upstream package). `Chiola.AseClient.StrongName` was published briefly (`0.20.0`/`0.20.1`)
+> and then unlisted — see above.
 
 A .NET data provider for SAP ASE — fork of DataAction/AdoNetCore.AseClient.
 
